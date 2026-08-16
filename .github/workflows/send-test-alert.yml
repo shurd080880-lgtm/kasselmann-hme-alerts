@@ -1,0 +1,41 @@
+name: Send OneSignal Test Alert
+
+on:
+  push:
+    paths:
+      - ".github/workflows/send-test-alert.yml"
+  workflow_dispatch:
+
+jobs:
+  send-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send test push notification
+        env:
+          ONESIGNAL_API_KEY: ${{ secrets.ONESIGNAL_API_KEY }}
+        run: |
+          python - <<'PY'
+          import json, os, urllib.request
+
+          app_id = "48b2684c-c9e3-466c-afe5-24779f7b2096"
+          api_key = os.environ["ONESIGNAL_API_KEY"]
+          payload = {
+              "app_id": app_id,
+              "target_channel": "push",
+              "included_segments": ["Subscribed Users"],
+              "headings": {"en": "🔔 Kasselmann HME Test"},
+              "contents": {"en": "Test alert: your Kasselmann HME push notifications are working."},
+              "url": "https://shurd080880-lgtm.github.io/kasselmann-hme-alerts/"
+          }
+          req = urllib.request.Request(
+              "https://api.onesignal.com/notifications?c=push",
+              data=json.dumps(payload).encode("utf-8"),
+              headers={
+                  "Authorization": f"Key {api_key}",
+                  "Content-Type": "application/json",
+              },
+              method="POST",
+          )
+          with urllib.request.urlopen(req, timeout=30) as r:
+              print(r.read().decode("utf-8"))
+          PY
