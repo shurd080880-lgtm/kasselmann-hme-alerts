@@ -1,0 +1,158 @@
+import json
+import os
+import time
+import urllib.request
+import uuid
+from pathlib import Path
+
+HME_URL = "https://hme-live2-leaderboard.azurewebsites.net/api/cib/lbdata/?storeUID=C261A68011D84960B705E846BC287752"
+ONESIGNAL_URL = "https://api.onesignal.com/notifications?c=push"
+APP_ID = "48b2684c-c9e3-466c-afe5-24779f7b2096"
+THRESHOLD = 250
+CHECK_INTERVAL_SECONDS = 60
+REQUIRED_MINUTES = 5
+STATE_FILE = Path("hme-alert-state.json")
+
+
+def http_json(url, headers=None, method="GET", body=None):
+    req = urllib.request.Request(url, headers=headers or {}, method=method)
+    if body is not None:
+        req.data = json.dumps(body).encode("utf-8")
+    with urllib.request.urlopen(req, timeout=30) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def load_state():
+    if not STATE_FILE.exists():
+        return {"alerted": {}}
+    try:
+        return json.loads(STATE_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {"alerted": {}}
+
+
+def save_state(state):
+    STATE_FILE.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def walk_dicts(value):
+    if isinstance(value, dict):
+        yield value
+        for child in value.values():
+            yield from walk_dicts(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from walk_dicts(child)
+
+
+def extract_store_readings(payload):
+    readings = {}
+
+    top_items = payload if isinstance(payload, list) else [payload]
+    for item in top_items:
+        if not isinstance(item, dict):
+            continue
+
+        store_name = item.get("StoreName") or item.get("storeName") or item.get("Name")
+        store_uid = item.get("StoreUID") or item.get("storeUID")
+
+        for obj in walk_dicts(item):
+            bucket = str(obj.get("TimeBucketType", "")).lower()
+            avg = obj.get("AverageTimeInSec")
+            if bucket == "currenthour" and isinstance(avg, (int, float)):
+                name = store_name or obj.get("StoreName") or obj.get("storeName") or store_uid or "Unknown Store"
+                readings[str(name)] = float(avg)
+                break
+
+    return readings
+
+
+def fetch_readings():
+    payload = http_json(HME_URL, headers={"User-Agent": "Kasselmann-HME-Alerts/1.0"})
+    readings = extract_store_readings(payload)
+    if not readings:
+        raise RuntimeError("HME response did not contain CurrentHour AverageTimeInSec values")
+    return readings
+
+
+def send_push(store_name, average):
+    api_key = os.environ.get("ONESIGNAL_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("Missing ONESIGNAL_API_KEY GitHub Actions secret")
+
+    body = {
+        "app_id": APP_ID,
+        "target_channel": "push",
+        "included_segments": ["Subscribed Users"],
+        "headings": {"en": "🚨 Kasselmann HME Alert"},
+        "contents": {
+            "en": f"{store_name} has remained at or above {THRESHOLD} seconds for 5 minutes. Current Hour Average: {round(average)} seconds."
+        },
+        "name": f"HME threshold alert - {store_name}",
+        "url": "https://shurd080880-lgtm.github.io/kasselmann-hme-alerts/",
+        "idempotency_key": str(uuid.uuid4()),
+    }
+
+    result = http_json(
+        ONESIGNAL_URL,
+        headers={
+            "Authorization": f"Key {api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+        body=body,
+    )
+    print(f"Sent OneSignal alert for {store_name}: {result}")
+
+
+def main():
+    state = load_state()
+    alerted = state.setdefault("alerted", {})
+
+    first = fetch_readings()
+    print("Current HME readings:", first)
+
+    # Reset stores that have recovered below the threshold.
+    for store, avg in first.items():
+        if avg < THRESHOLD and alerted.get(store):
+            alerted[store] = False
+            print(f"Reset alert state for {store}; current average is {avg}")
+
+    candidates = {
+        store: avg
+        for store, avg in first.items()
+        if avg >= THRESHOLD and not alerted.get(store, False)
+    }
+
+    if not candidates:
+        save_state(state)
+        print("No new stores need a 5-minute threshold check.")
+        return
+
+    print("Monitoring candidates for 5 continuous minutes:", candidates)
+
+    for minute in range(1, REQUIRED_MINUTES + 1):
+        time.sleep(CHECK_INTERVAL_SECONDS)
+        latest = fetch_readings()
+        print(f"Minute {minute} readings:", latest)
+
+        for store in list(candidates):
+            avg = latest.get(store)
+            if avg is None or avg < THRESHOLD:
+                print(f"{store} dropped below threshold; cancelling alert check.")
+                candidates.pop(store, None)
+            else:
+                candidates[store] = avg
+
+        if not candidates:
+            break
+
+    for store, avg in candidates.items():
+        send_push(store, avg)
+        alerted[store] = True
+
+    save_state(state)
+
+
+if __name__ == "__main__":
+    main()
