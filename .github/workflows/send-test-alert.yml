@@ -23,8 +23,10 @@ jobs:
               "app_id": app_id,
               "target_channel": "push",
               "included_segments": ["Total Subscriptions"],
-              "headings": {"en": "🔔 Kasselmann HME Test"},
-              "contents": {"en": "Test alert: your Kasselmann HME push notifications are working."},
+              "headings": {"en": "🚨 LaGrange -Kasselmann HME Alert"},
+              "contents": {"en": "LaGrange -Kasselmann has remained at or above 250 seconds for 5 minutes. Current Hour Average: 287 seconds."},
+              "ios_sound": "default",
+              "android_sound": "default",
               "url": "https://shurd080880-lgtm.github.io/kasselmann-hme-alerts/"
           }
           req = urllib.request.Request(
