@@ -13,6 +13,17 @@ CHECK_INTERVAL_SECONDS = 60
 REQUIRED_MINUTES = 5
 STATE_FILE = Path("hme-alert-state.json")
 
+STORE_TAGS = {
+    "Pendleton-Kasselmann": "pendleton",
+    "Eminence - Kasselmann": "eminence",
+    "LaGrange -Kasselmann": "lagrange",
+    "Hanover- Kasselmann": "hanover",
+    "Madison- Kasselmann": "madison",
+    "Clarksville-Kasselmann": "clarksville",
+    "Buckner-Kasselmann": "buckner",
+    "Veterans-Kasselmann": "veterans",
+}
+
 
 def http_json(url, headers=None, method="GET", body=None):
     req = urllib.request.Request(url, headers=headers or {}, method=method)
@@ -46,7 +57,6 @@ def walk_dicts(value):
 
 
 def find_current_hour_average(store_obj):
-    """Return the CurrentHour AverageTimeInSec found inside one store object."""
     for obj in walk_dicts(store_obj):
         bucket = str(obj.get("TimeBucketType", "")).strip().lower()
         avg = obj.get("AverageTimeInSec")
@@ -56,7 +66,6 @@ def find_current_hour_average(store_obj):
 
 
 def extract_store_readings(payload):
-    """Extract every store on the leaderboard, not only the first store."""
     readings = {}
     seen_store_objects = set()
 
@@ -90,11 +99,23 @@ def send_push(store_name, average):
     if not api_key:
         raise RuntimeError("Missing ONESIGNAL_API_KEY GitHub Actions secret")
 
+    store_tag = STORE_TAGS.get(store_name)
+    if not store_tag:
+        print(f"No OneSignal store tag mapping for {store_name}; alert not sent.")
+        return
+
     body = {
         "app_id": APP_ID,
         "target_channel": "push",
-        "included_segments": ["Total Subscriptions"],
-        "headings": {"en": "🚨 Kasselmann HME Alert"},
+        "filters": [
+            {
+                "field": "tag",
+                "key": "hme_store",
+                "relation": "=",
+                "value": store_tag,
+            }
+        ],
+        "headings": {"en": f"🚨 {store_name} HME Alert"},
         "contents": {
             "en": f"{store_name} has remained at or above {THRESHOLD} seconds for 5 minutes. Current Hour Average: {round(average)} seconds."
         },
@@ -112,7 +133,7 @@ def send_push(store_name, average):
         method="POST",
         body=body,
     )
-    print(f"Sent OneSignal alert for {store_name}: {result}")
+    print(f"Sent OneSignal alert for {store_name} to hme_store={store_tag}: {result}")
 
 
 def main():
