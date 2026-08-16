@@ -68,21 +68,17 @@ def find_current_hour_average(store_obj):
 def extract_store_readings(payload):
     readings = {}
     seen_store_objects = set()
-
     for obj in walk_dicts(payload):
         store_name = obj.get("StoreName") or obj.get("storeName")
         if not store_name:
             continue
-
         marker = id(obj)
         if marker in seen_store_objects:
             continue
         seen_store_objects.add(marker)
-
         avg = find_current_hour_average(obj)
         if avg is not None:
             readings[str(store_name).strip()] = avg
-
     return readings
 
 
@@ -104,16 +100,12 @@ def send_push(store_name, average):
         print(f"No OneSignal store tag mapping for {store_name}; alert not sent.")
         return
 
+    tag_key = f"hme_store_{store_tag}"
     body = {
         "app_id": APP_ID,
         "target_channel": "push",
         "filters": [
-            {
-                "field": "tag",
-                "key": "hme_store",
-                "relation": "=",
-                "value": store_tag,
-            }
+            {"field": "tag", "key": tag_key, "relation": "=", "value": "1"}
         ],
         "headings": {"en": f"🚨 {store_name} HME Alert"},
         "contents": {
@@ -133,13 +125,12 @@ def send_push(store_name, average):
         method="POST",
         body=body,
     )
-    print(f"Sent OneSignal alert for {store_name} to hme_store={store_tag}: {result}")
+    print(f"Sent OneSignal alert for {store_name} to {tag_key}=1: {result}")
 
 
 def main():
     state = load_state()
     alerted = state.setdefault("alerted", {})
-
     first = fetch_readings()
     print("Current HME readings:", first)
     print(f"Stores found: {len(first)}")
@@ -166,7 +157,6 @@ def main():
         time.sleep(CHECK_INTERVAL_SECONDS)
         latest = fetch_readings()
         print(f"Minute {minute} readings:", latest)
-
         for store in list(candidates):
             avg = latest.get(store)
             if avg is None or avg < THRESHOLD:
@@ -174,7 +164,6 @@ def main():
                 candidates.pop(store, None)
             else:
                 candidates[store] = avg
-
         if not candidates:
             break
 
