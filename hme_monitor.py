@@ -45,24 +45,37 @@ def walk_dicts(value):
             yield from walk_dicts(child)
 
 
-def extract_store_readings(payload):
-    readings = {}
+def find_current_hour_average(store_obj):
+    """Return the CurrentHour AverageTimeInSec found inside one store object."""
+    for obj in walk_dicts(store_obj):
+        bucket = str(obj.get("TimeBucketType", "")).strip().lower()
+        avg = obj.get("AverageTimeInSec")
+        if bucket == "currenthour" and isinstance(avg, (int, float)):
+            return float(avg)
+    return None
 
-    top_items = payload if isinstance(payload, list) else [payload]
-    for item in top_items:
-        if not isinstance(item, dict):
+
+def extract_store_readings(payload):
+    """Extract every store on the leaderboard, not only the first store."""
+    readings = {}
+    seen_store_objects = set()
+
+    for obj in walk_dicts(payload):
+        store_name = obj.get("StoreName") or obj.get("storeName")
+        if not store_name:
             continue
 
-        store_name = item.get("StoreName") or item.get("storeName") or item.get("Name")
-        store_uid = item.get("StoreUID") or item.get("storeUID")
+        # The HME response contains nested dictionaries. Only process each
+        # store-shaped object once, then search inside that store for its
+        # CurrentHour bucket.
+        marker = id(obj)
+        if marker in seen_store_objects:
+            continue
+        seen_store_objects.add(marker)
 
-        for obj in walk_dicts(item):
-            bucket = str(obj.get("TimeBucketType", "")).lower()
-            avg = obj.get("AverageTimeInSec")
-            if bucket == "currenthour" and isinstance(avg, (int, float)):
-                name = store_name or obj.get("StoreName") or obj.get("storeName") or store_uid or "Unknown Store"
-                readings[str(name)] = float(avg)
-                break
+        avg = find_current_hour_average(obj)
+        if avg is not None:
+            readings[str(store_name).strip()] = avg
 
     return readings
 
@@ -111,6 +124,7 @@ def main():
 
     first = fetch_readings()
     print("Current HME readings:", first)
+    print(f"Stores found: {len(first)}")
 
     # Reset stores that have recovered below the threshold.
     for store, avg in first.items():
