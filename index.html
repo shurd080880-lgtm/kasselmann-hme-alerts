@@ -92,6 +92,7 @@
     const checkboxes = [...document.querySelectorAll('#storeList input[type="checkbox"]')];
     let oneSignalReady = false;
     let OneSignalInstance = null;
+    let syncInProgress = false;
 
     function showStatus(title, detail, type = "") {
       statusText.textContent = title; statusDetail.textContent = detail;
@@ -114,29 +115,80 @@
       saveStoreButton.textContent = "Save Locations for This Device";
     }));
 
-    async function saveStoreTags() {
+    async function waitForSubscriptionId(timeoutMs = 10000) {
+      const start = Date.now();
+      while (Date.now() - start < timeoutMs) {
+        const id = OneSignalInstance && OneSignalInstance.User && OneSignalInstance.User.PushSubscription
+          ? OneSignalInstance.User.PushSubscription.id
+          : null;
+        if (id) return id;
+        await new Promise(r => setTimeout(r, 500));
+      }
+      return null;
+    }
+
+    async function syncStoreTags(showSavedMessage = true) {
+      if (syncInProgress) return false;
       const stores = selectedStores();
-      if (!stores.length) { showStatus("Select at Least One Location", "Choose one or more locations for this device.", "error"); return false; }
-      if (!OneSignalInstance) { showStatus("Notification Service Loading", "Please wait a moment and try again."); return false; }
+      if (!stores.length) {
+        if (showSavedMessage) showStatus("Select at Least One Location", "Choose one or more locations for this device.", "error");
+        return false;
+      }
+      if (!OneSignalInstance) return false;
+
+      const subscriptionId = await waitForSubscriptionId();
+      if (!subscriptionId) {
+        if (showSavedMessage) showStatus("Enable Notifications First", "The phone must be registered with OneSignal before store locations can be assigned.", "error");
+        return false;
+      }
+
       try {
-        saveStoreButton.disabled = true; saveStoreButton.textContent = "Saving Locations…";
+        syncInProgress = true;
+        saveStoreButton.disabled = true;
+        saveStoreButton.textContent = "Saving Locations…";
+
         const tags = {};
-        Object.keys(STORES).forEach(code => tags["hme_store_" + code] = stores.includes(code) ? "1" : "0");
+        Object.keys(STORES).forEach(code => {
+          tags["hme_store_" + code] = stores.includes(code) ? "1" : "0";
+        });
+
         OneSignalInstance.User.addTags(tags);
         localStorage.setItem("hme_stores", JSON.stringify(stores));
         localStorage.removeItem("hme_store");
-        await new Promise(r => setTimeout(r, 800));
-        saveStoreButton.textContent = "✓ Locations Saved";
-        showStatus("Locations Assigned", "This device is assigned to: " + selectedLabels() + ".", "success");
+
+        // Keep the web app active long enough for the Web SDK to send its tag request.
+        await new Promise(r => setTimeout(r, 2500));
+
+        // Re-apply once more after the subscription is definitely available. This is intentional:
+        // OneSignal Web requires the user/subscription to exist before tags can be persisted.
+        OneSignalInstance.User.addTags(tags);
+        await new Promise(r => setTimeout(r, 1500));
+
+        const currentTags = OneSignalInstance.User.getTags ? OneSignalInstance.User.getTags() : {};
+        const expectedKeys = stores.map(code => "hme_store_" + code);
+        const verified = expectedKeys.every(key => String(currentTags[key]) === "1");
+
+        saveStoreButton.textContent = verified ? "✓ Locations Saved" : "✓ Locations Sent";
+        if (showSavedMessage) {
+          showStatus(
+            verified ? "Locations Assigned" : "Locations Sent to OneSignal",
+            "This device is assigned to: " + selectedLabels() + ".",
+            "success"
+          );
+        }
         return true;
       } catch (error) {
         console.error("Location tag save failed", error);
-        saveStoreButton.disabled = false; saveStoreButton.textContent = "Save Locations for This Device";
-        showStatus("Unable to Save Locations", error && error.message ? error.message : String(error), "error");
+        saveStoreButton.textContent = "Save Locations for This Device";
+        if (showSavedMessage) showStatus("Unable to Save Locations", error && error.message ? error.message : String(error), "error");
         return false;
+      } finally {
+        syncInProgress = false;
+        saveStoreButton.disabled = selectedStores().length === 0 || !oneSignalReady;
       }
     }
-    saveStoreButton.addEventListener("click", saveStoreTags);
+
+    saveStoreButton.addEventListener("click", () => syncStoreTags(true));
 
     if (isIOS() && !isStandalone()) {
       enableButton.textContent = "Add to Home Screen First"; enableButton.disabled = true;
@@ -179,7 +231,22 @@
         }
       };
 
-      OneSignal.User.PushSubscription.addEventListener("change", updateReadyState); updateReadyState();
+      OneSignal.User.PushSubscription.addEventListener("change", async () => {
+        updateReadyState();
+        if (OneSignal.User.PushSubscription.optedIn && OneSignal.User.PushSubscription.id && selectedStores().length) {
+          await syncStoreTags(false);
+        }
+      });
+      updateReadyState();
+
+      // Important: restore the selected store tags on every app session. OneSignal's Web SDK
+      // only persists tag requests after a web user/subscription exists, and browser data changes
+      // can otherwise leave a subscribed phone without its store tags.
+      if (OneSignal.User.PushSubscription.optedIn && OneSignal.User.PushSubscription.id && selectedStores().length) {
+        await syncStoreTags(false);
+        updateReadyState();
+      }
+
       enableButton.onclick = null;
       enableButton.addEventListener("click", async function() {
         if (!selectedStores().length) { showStatus("Select a Location First", "Choose and save at least one location before enabling alerts.", "error"); return; }
@@ -189,8 +256,10 @@
           if (!OneSignal.Notifications.permission) await OneSignal.Notifications.requestPermission();
           if (!OneSignal.Notifications.permission && Notification.permission !== "granted") throw new Error("Notifications are blocked. Allow notifications for HME Alerts in iPhone Settings and try again.");
           await OneSignal.User.PushSubscription.optIn();
-          await saveStoreTags();
-          await new Promise(r => setTimeout(r, 1500)); updateReadyState();
+          await waitForSubscriptionId();
+          await syncStoreTags(true);
+          await new Promise(r => setTimeout(r, 1000));
+          updateReadyState();
         } catch (error) {
           enableButton.textContent = "🔔 Try Again"; enableButton.disabled = false;
           showStatus("Unable to Enable Alerts", error && error.message ? error.message : String(error), "error");
