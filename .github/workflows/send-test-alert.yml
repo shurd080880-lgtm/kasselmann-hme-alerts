@@ -22,7 +22,7 @@ jobs:
           payload = {
               "app_id": app_id,
               "target_channel": "push",
-              "included_segments": ["Subscribed Users"],
+              "included_segments": ["Total Subscriptions"],
               "headings": {"en": "🔔 Kasselmann HME Test"},
               "contents": {"en": "Test alert: your Kasselmann HME push notifications are working."},
               "url": "https://shurd080880-lgtm.github.io/kasselmann-hme-alerts/"
