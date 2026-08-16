@@ -10,9 +10,7 @@
   <link rel="manifest" href="/kasselmann-hme-alerts/manifest.json" />
   <link rel="icon" href="/kasselmann-hme-alerts/icon-192.svg" type="image/svg+xml" />
   <title>Kasselmann HME Alerts</title>
-
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
-
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: #f7f7f7; color: #111; }
@@ -22,8 +20,11 @@
     h1 { margin: 0; font-size: 32px; }
     .subtitle { margin-top: 10px; font-size: 18px; color: #666; }
     .store-box { margin-top: 34px; text-align: left; }
-    .store-box label { display: block; font-weight: bold; margin-bottom: 8px; font-size: 16px; }
-    #storeSelect { width: 100%; padding: 15px 14px; border: 1px solid #bbb; border-radius: 8px; background: white; font-size: 17px; }
+    .store-box > label { display: block; font-weight: bold; margin-bottom: 10px; font-size: 16px; }
+    .store-list { background: #fff; border: 1px solid #ccc; border-radius: 10px; padding: 8px 14px; }
+    .store-option { display: flex; align-items: center; gap: 12px; padding: 11px 2px; border-bottom: 1px solid #eee; font-size: 17px; }
+    .store-option:last-child { border-bottom: 0; }
+    .store-option input { width: 20px; height: 20px; }
     #saveStoreButton { width: 100%; margin-top: 12px; padding: 14px; border: 1px solid #171719; border-radius: 8px; background: white; color: #171719; font-size: 16px; font-weight: bold; cursor: pointer; }
     #saveStoreButton:disabled { opacity: .55; cursor: default; }
     #enableButton { width: 100%; margin-top: 18px; padding: 20px; border: 0; border-radius: 8px; background: #171719; color: white; font-size: 18px; font-weight: bold; cursor: pointer; }
@@ -43,215 +44,156 @@
     @media (max-width: 600px) { .page { padding-top: 30px; } h1 { font-size: 27px; } }
   </style>
 </head>
-
 <body>
-  <div class="page">
-    <main class="container">
-      <div class="icon">🔔</div>
-      <h1>Kasselmann HME Alerts</h1>
-      <div class="subtitle">Drive-Thru Performance Notifications</div>
+  <div class="page"><main class="container">
+    <div class="icon">🔔</div>
+    <h1>Kasselmann HME Alerts</h1>
+    <div class="subtitle">Drive-Thru Performance Notifications</div>
 
-      <div class="store-box">
-        <label for="storeSelect">Select this device's store</label>
-        <select id="storeSelect">
-          <option value="">Choose a store…</option>
-          <option value="pendleton">Pendleton</option>
-          <option value="eminence">Eminence</option>
-          <option value="lagrange">LaGrange</option>
-          <option value="hanover">Hanover</option>
-          <option value="madison">Madison</option>
-          <option value="clarksville">Clarksville</option>
-          <option value="buckner">Buckner</option>
-          <option value="veterans">Veterans</option>
-        </select>
-        <button id="saveStoreButton" disabled>Save Store for This Device</button>
+    <div class="store-box">
+      <label>Select the locations this device should receive alerts for</label>
+      <div class="store-list" id="storeList">
+        <label class="store-option"><input type="checkbox" value="pendleton"> Pendleton</label>
+        <label class="store-option"><input type="checkbox" value="eminence"> Eminence</label>
+        <label class="store-option"><input type="checkbox" value="lagrange"> LaGrange</label>
+        <label class="store-option"><input type="checkbox" value="hanover"> Hanover</label>
+        <label class="store-option"><input type="checkbox" value="madison"> Madison</label>
+        <label class="store-option"><input type="checkbox" value="clarksville"> Clarksville</label>
+        <label class="store-option"><input type="checkbox" value="buckner"> Buckner</label>
+        <label class="store-option"><input type="checkbox" value="veterans"> Veterans</label>
       </div>
+      <button id="saveStoreButton" disabled>Save Locations for This Device</button>
+    </div>
 
-      <button id="enableButton" disabled>Loading Notification Service…</button>
+    <button id="enableButton" disabled>Loading Notification Service…</button>
+    <div class="description">This device will receive alerts for any selected location when its Current Hour Average remains at or above <strong>250 seconds for 5 minutes</strong>.</div>
 
-      <div class="description">
-        This device will receive alerts only for its selected store when the Current Hour Average remains at or above
-        <strong>250 seconds for 5 minutes</strong>.
-      </div>
+    <h2 class="section-title">How It Works</h2>
+    <div class="steps">
+      <div class="step"><div class="number">1</div><div class="step-text">Select one or more locations for this device.</div></div>
+      <div class="step"><div class="number">2</div><div class="step-text">Save the locations and enable notifications.</div></div>
+      <div class="step"><div class="number">3</div><div class="step-text">This device receives HME alerts only for the selected locations.</div></div>
+    </div>
 
-      <h2 class="section-title">How It Works</h2>
-      <div class="steps">
-        <div class="step"><div class="number">1</div><div class="step-text">Select the store assigned to this device.</div></div>
-        <div class="step"><div class="number">2</div><div class="step-text">Enable notifications and keep them allowed.</div></div>
-        <div class="step"><div class="number">3</div><div class="step-text">This device receives HME alerts only for the selected store.</div></div>
-      </div>
-
-      <div id="statusBox" class="status">
-        <div class="status-label">Notification Status</div>
-        <div id="statusText">Initializing…</div>
-        <div id="statusDetail">Connecting to the notification service.</div>
-      </div>
-    </main>
-  </div>
+    <div id="statusBox" class="status"><div class="status-label">Notification Status</div><div id="statusText">Initializing…</div><div id="statusDetail">Connecting to the notification service.</div></div>
+  </main></div>
 
   <script>
     const APP_ID = "48b2684c-c9e3-466c-afe5-24779f7b2096";
-    const STORE_TAG_KEY = "hme_store";
+    const STORES = {
+      pendleton: "Pendleton", eminence: "Eminence", lagrange: "LaGrange", hanover: "Hanover",
+      madison: "Madison", clarksville: "Clarksville", buckner: "Buckner", veterans: "Veterans"
+    };
     const enableButton = document.getElementById("enableButton");
     const saveStoreButton = document.getElementById("saveStoreButton");
-    const storeSelect = document.getElementById("storeSelect");
     const statusBox = document.getElementById("statusBox");
     const statusText = document.getElementById("statusText");
     const statusDetail = document.getElementById("statusDetail");
-
+    const checkboxes = [...document.querySelectorAll('#storeList input[type="checkbox"]')];
     let oneSignalReady = false;
     let OneSignalInstance = null;
 
     function showStatus(title, detail, type = "") {
-      statusText.textContent = title;
-      statusDetail.textContent = detail;
-      statusBox.classList.remove("success", "error");
-      if (type) statusBox.classList.add(type);
+      statusText.textContent = title; statusDetail.textContent = detail;
+      statusBox.classList.remove("success", "error"); if (type) statusBox.classList.add(type);
     }
+    function isIOS() { return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1); }
+    function isStandalone() { return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true; }
+    function selectedStores() { return checkboxes.filter(c => c.checked).map(c => c.value); }
+    function selectedLabels() { return selectedStores().map(s => STORES[s]).join(", "); }
 
-    function storeLabel(value) {
-      const option = [...storeSelect.options].find(o => o.value === value);
-      return option ? option.textContent : value;
+    const saved = JSON.parse(localStorage.getItem("hme_stores") || "[]");
+    if (!saved.length) {
+      const old = localStorage.getItem("hme_store");
+      if (old) saved.push(old);
     }
+    checkboxes.forEach(c => c.checked = saved.includes(c.value));
 
-    function isIOS() {
-      return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-    }
+    checkboxes.forEach(c => c.addEventListener("change", () => {
+      saveStoreButton.disabled = !oneSignalReady || selectedStores().length === 0;
+      saveStoreButton.textContent = "Save Locations for This Device";
+    }));
 
-    function isStandalone() {
-      return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
-    }
-
-    function selectedStore() {
-      return storeSelect.value.trim();
-    }
-
-    async function saveStoreTag() {
-      const store = selectedStore();
-      if (!store) {
-        showStatus("Select a Store", "Choose the store this device should receive alerts for.", "error");
-        return false;
-      }
-      if (!OneSignalInstance) {
-        showStatus("Notification Service Loading", "Please wait a moment and try again.");
-        return false;
-      }
-
+    async function saveStoreTags() {
+      const stores = selectedStores();
+      if (!stores.length) { showStatus("Select at Least One Location", "Choose one or more locations for this device.", "error"); return false; }
+      if (!OneSignalInstance) { showStatus("Notification Service Loading", "Please wait a moment and try again."); return false; }
       try {
-        saveStoreButton.disabled = true;
-        saveStoreButton.textContent = "Saving Store…";
-        OneSignalInstance.User.addTag(STORE_TAG_KEY, store);
-        localStorage.setItem("hme_store", store);
-        await new Promise(resolve => setTimeout(resolve, 800));
-        saveStoreButton.textContent = "✓ Store Saved: " + storeLabel(store);
-        showStatus("Store Assigned", "This device is assigned to " + storeLabel(store) + ".", "success");
+        saveStoreButton.disabled = true; saveStoreButton.textContent = "Saving Locations…";
+        const tags = {};
+        Object.keys(STORES).forEach(code => tags["hme_store_" + code] = stores.includes(code) ? "1" : "0");
+        OneSignalInstance.User.addTags(tags);
+        localStorage.setItem("hme_stores", JSON.stringify(stores));
+        localStorage.removeItem("hme_store");
+        await new Promise(r => setTimeout(r, 800));
+        saveStoreButton.textContent = "✓ Locations Saved";
+        showStatus("Locations Assigned", "This device is assigned to: " + selectedLabels() + ".", "success");
         return true;
       } catch (error) {
-        console.error("Store tag save failed", error);
-        saveStoreButton.disabled = false;
-        saveStoreButton.textContent = "Save Store for This Device";
-        showStatus("Unable to Save Store", error && error.message ? error.message : String(error), "error");
+        console.error("Location tag save failed", error);
+        saveStoreButton.disabled = false; saveStoreButton.textContent = "Save Locations for This Device";
+        showStatus("Unable to Save Locations", error && error.message ? error.message : String(error), "error");
         return false;
       }
     }
-
-    const savedStore = localStorage.getItem("hme_store");
-    if (savedStore) storeSelect.value = savedStore;
-
-    storeSelect.addEventListener("change", function() {
-      saveStoreButton.disabled = !oneSignalReady || !selectedStore();
-      saveStoreButton.textContent = "Save Store for This Device";
-    });
-
-    saveStoreButton.addEventListener("click", saveStoreTag);
+    saveStoreButton.addEventListener("click", saveStoreTags);
 
     if (isIOS() && !isStandalone()) {
-      enableButton.textContent = "Add to Home Screen First";
-      enableButton.disabled = true;
-      showStatus("iPhone Setup Required", "Open this page in Safari, tap Share, choose Add to Home Screen, then open the new HME Alerts icon from your Home Screen.");
+      enableButton.textContent = "Add to Home Screen First"; enableButton.disabled = true;
+      showStatus("iPhone Setup Required", "Open this page in Safari, tap Share, choose Add to Home Screen, then open the HME Alerts icon from your Home Screen.");
     }
 
     window.OneSignalDeferred = window.OneSignalDeferred || [];
-
-    const initTimeout = setTimeout(function() {
+    const initTimeout = setTimeout(() => {
       if (!oneSignalReady && (!isIOS() || isStandalone())) {
-        enableButton.textContent = "Reload HME Alerts";
-        enableButton.disabled = false;
+        enableButton.textContent = "Reload HME Alerts"; enableButton.disabled = false;
         showStatus("Notification Service Did Not Finish Loading", "Close HME Alerts completely, reopen it from the Home Screen, and try again.", "error");
-        enableButton.onclick = function() { window.location.reload(); };
+        enableButton.onclick = () => window.location.reload();
       }
     }, 12000);
 
     OneSignalDeferred.push(async function(OneSignal) {
       OneSignalInstance = OneSignal;
       try {
-        await OneSignal.init({
-          appId: APP_ID,
-          serviceWorkerPath: "/kasselmann-hme-alerts/OneSignalSDKWorker.js",
-          serviceWorkerParam: { scope: "/kasselmann-hme-alerts/" },
-          notifyButton: { enable: false }
-        });
-        oneSignalReady = true;
-        clearTimeout(initTimeout);
-        saveStoreButton.disabled = !selectedStore();
+        await OneSignal.init({ appId: APP_ID, serviceWorkerPath: "/kasselmann-hme-alerts/OneSignalSDKWorker.js", serviceWorkerParam: { scope: "/kasselmann-hme-alerts/" }, notifyButton: { enable: false } });
+        oneSignalReady = true; clearTimeout(initTimeout);
+        saveStoreButton.disabled = selectedStores().length === 0;
       } catch (error) {
-        console.error("OneSignal init failed", error);
-        enableButton.textContent = "Notification Setup Error";
-        enableButton.disabled = true;
-        showStatus("Setup Error", error && error.message ? error.message : String(error || "OneSignal could not initialize on this site."), "error");
-        return;
+        enableButton.textContent = "Notification Setup Error"; enableButton.disabled = true;
+        showStatus("Setup Error", error && error.message ? error.message : String(error), "error"); return;
       }
 
       const updateReadyState = function() {
         const optedIn = OneSignal.User.PushSubscription.optedIn;
         const subscriptionId = OneSignal.User.PushSubscription.id;
-        const store = selectedStore();
-        if (optedIn && subscriptionId && store) {
-          enableButton.textContent = "✓ HME Alerts Enabled";
-          enableButton.disabled = true;
-          showStatus("HME Alerts Enabled", "This device is registered for " + storeLabel(store) + " HME alerts.", "success");
-        } else if (optedIn && subscriptionId && !store) {
-          enableButton.textContent = "✓ Notifications Enabled";
-          enableButton.disabled = true;
-          showStatus("Select Your Store", "Notifications are enabled. Select and save the store for this device.");
+        const stores = selectedStores();
+        if (optedIn && subscriptionId && stores.length) {
+          enableButton.textContent = "✓ HME Alerts Enabled"; enableButton.disabled = true;
+          showStatus("HME Alerts Enabled", "This device is registered for: " + selectedLabels() + ".", "success");
+        } else if (optedIn && subscriptionId) {
+          enableButton.textContent = "✓ Notifications Enabled"; enableButton.disabled = true;
+          showStatus("Select Your Locations", "Notifications are enabled. Select and save one or more locations.");
         } else {
-          enableButton.textContent = "🔔 Enable HME Alerts";
-          enableButton.disabled = false;
-          showStatus("Not Enabled", "Select a store, save it, then press Enable HME Alerts.");
+          enableButton.textContent = "🔔 Enable HME Alerts"; enableButton.disabled = false;
+          showStatus("Not Enabled", "Select one or more locations, save them, then press Enable HME Alerts.");
         }
       };
 
-      OneSignal.User.PushSubscription.addEventListener("change", updateReadyState);
-      updateReadyState();
-
+      OneSignal.User.PushSubscription.addEventListener("change", updateReadyState); updateReadyState();
       enableButton.onclick = null;
       enableButton.addEventListener("click", async function() {
-        if (!selectedStore()) {
-          showStatus("Select a Store First", "Choose and save the store assigned to this device before enabling alerts.", "error");
-          return;
-        }
-
-        enableButton.disabled = true;
-        enableButton.textContent = "Enabling…";
-        showStatus("Enabling…", "Waiting for notification permission.");
+        if (!selectedStores().length) { showStatus("Select a Location First", "Choose and save at least one location before enabling alerts.", "error"); return; }
+        enableButton.disabled = true; enableButton.textContent = "Enabling…"; showStatus("Enabling…", "Waiting for notification permission.");
         try {
-          if (!OneSignal.Notifications.isPushSupported()) throw new Error("Web push is not supported by this browser/device. On iPhone, use iOS 16.4 or newer and open HME Alerts from the Home Screen icon.");
+          if (!OneSignal.Notifications.isPushSupported()) throw new Error("Web push is not supported by this browser/device.");
           if (!OneSignal.Notifications.permission) await OneSignal.Notifications.requestPermission();
           if (!OneSignal.Notifications.permission && Notification.permission !== "granted") throw new Error("Notifications are blocked. Allow notifications for HME Alerts in iPhone Settings and try again.");
           await OneSignal.User.PushSubscription.optIn();
-          await saveStoreTag();
-          await new Promise(resolve => setTimeout(resolve, 1500));
-          updateReadyState();
-          if (!OneSignal.User.PushSubscription.id) {
-            enableButton.textContent = "🔔 Try Again";
-            enableButton.disabled = false;
-            showStatus("Permission Granted, Registration Pending", "OneSignal has not created the subscription yet. Close HME Alerts, reopen it from the Home Screen, and try again.", "error");
-          }
+          await saveStoreTags();
+          await new Promise(r => setTimeout(r, 1500)); updateReadyState();
         } catch (error) {
-          console.error("Enable push failed", error);
-          enableButton.textContent = "🔔 Try Again";
-          enableButton.disabled = false;
-          showStatus("Unable to Enable Alerts", error && error.message ? error.message : String(error || "Push notifications could not be enabled."), "error");
+          enableButton.textContent = "🔔 Try Again"; enableButton.disabled = false;
+          showStatus("Unable to Enable Alerts", error && error.message ? error.message : String(error), "error");
         }
       });
     });
