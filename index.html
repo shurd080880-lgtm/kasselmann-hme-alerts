@@ -21,7 +21,12 @@
     .icon { width: 62px; height: 62px; background: #111; color: white; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 25px; font-size: 30px; }
     h1 { margin: 0; font-size: 32px; }
     .subtitle { margin-top: 10px; font-size: 18px; color: #666; }
-    #enableButton { width: 100%; margin-top: 45px; padding: 20px; border: 0; border-radius: 8px; background: #171719; color: white; font-size: 18px; font-weight: bold; cursor: pointer; }
+    .store-box { margin-top: 34px; text-align: left; }
+    .store-box label { display: block; font-weight: bold; margin-bottom: 8px; font-size: 16px; }
+    #storeSelect { width: 100%; padding: 15px 14px; border: 1px solid #bbb; border-radius: 8px; background: white; font-size: 17px; }
+    #saveStoreButton { width: 100%; margin-top: 12px; padding: 14px; border: 1px solid #171719; border-radius: 8px; background: white; color: #171719; font-size: 16px; font-weight: bold; cursor: pointer; }
+    #saveStoreButton:disabled { opacity: .55; cursor: default; }
+    #enableButton { width: 100%; margin-top: 18px; padding: 20px; border: 0; border-radius: 8px; background: #171719; color: white; font-size: 18px; font-weight: bold; cursor: pointer; }
     #enableButton:disabled { opacity: 0.65; cursor: default; }
     .description { margin: 26px auto 50px; max-width: 500px; line-height: 1.55; color: #666; font-size: 16px; }
     .section-title { text-align: left; font-size: 21px; margin-bottom: 12px; }
@@ -46,18 +51,34 @@
       <h1>Kasselmann HME Alerts</h1>
       <div class="subtitle">Drive-Thru Performance Notifications</div>
 
+      <div class="store-box">
+        <label for="storeSelect">Select this device's store</label>
+        <select id="storeSelect">
+          <option value="">Choose a store…</option>
+          <option value="pendleton">Pendleton</option>
+          <option value="eminence">Eminence</option>
+          <option value="lagrange">LaGrange</option>
+          <option value="hanover">Hanover</option>
+          <option value="madison">Madison</option>
+          <option value="clarksville">Clarksville</option>
+          <option value="buckner">Buckner</option>
+          <option value="veterans">Veterans</option>
+        </select>
+        <button id="saveStoreButton" disabled>Save Store for This Device</button>
+      </div>
+
       <button id="enableButton" disabled>Loading Notification Service…</button>
 
       <div class="description">
-        Receive an alert when a Kasselmann location's Current Hour Average remains at or above
+        This device will receive alerts only for its selected store when the Current Hour Average remains at or above
         <strong>250 seconds for 5 minutes</strong>.
       </div>
 
       <h2 class="section-title">How It Works</h2>
       <div class="steps">
-        <div class="step"><div class="number">1</div><div class="step-text">Enable notifications on this device.</div></div>
-        <div class="step"><div class="number">2</div><div class="step-text">Keep notifications allowed.</div></div>
-        <div class="step"><div class="number">3</div><div class="step-text">HME alerts will be delivered automatically when a location exceeds the alert threshold.</div></div>
+        <div class="step"><div class="number">1</div><div class="step-text">Select the store assigned to this device.</div></div>
+        <div class="step"><div class="number">2</div><div class="step-text">Enable notifications and keep them allowed.</div></div>
+        <div class="step"><div class="number">3</div><div class="step-text">This device receives HME alerts only for the selected store.</div></div>
       </div>
 
       <div id="statusBox" class="status">
@@ -70,18 +91,27 @@
 
   <script>
     const APP_ID = "48b2684c-c9e3-466c-afe5-24779f7b2096";
+    const STORE_TAG_KEY = "hme_store";
     const enableButton = document.getElementById("enableButton");
+    const saveStoreButton = document.getElementById("saveStoreButton");
+    const storeSelect = document.getElementById("storeSelect");
     const statusBox = document.getElementById("statusBox");
     const statusText = document.getElementById("statusText");
     const statusDetail = document.getElementById("statusDetail");
 
     let oneSignalReady = false;
+    let OneSignalInstance = null;
 
     function showStatus(title, detail, type = "") {
       statusText.textContent = title;
       statusDetail.textContent = detail;
       statusBox.classList.remove("success", "error");
       if (type) statusBox.classList.add(type);
+    }
+
+    function storeLabel(value) {
+      const option = [...storeSelect.options].find(o => o.value === value);
+      return option ? option.textContent : value;
     }
 
     function isIOS() {
@@ -91,6 +121,49 @@
     function isStandalone() {
       return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
     }
+
+    function selectedStore() {
+      return storeSelect.value.trim();
+    }
+
+    async function saveStoreTag() {
+      const store = selectedStore();
+      if (!store) {
+        showStatus("Select a Store", "Choose the store this device should receive alerts for.", "error");
+        return false;
+      }
+      if (!OneSignalInstance) {
+        showStatus("Notification Service Loading", "Please wait a moment and try again.");
+        return false;
+      }
+
+      try {
+        saveStoreButton.disabled = true;
+        saveStoreButton.textContent = "Saving Store…";
+        OneSignalInstance.User.addTag(STORE_TAG_KEY, store);
+        localStorage.setItem("hme_store", store);
+        await new Promise(resolve => setTimeout(resolve, 800));
+        saveStoreButton.textContent = "✓ Store Saved: " + storeLabel(store);
+        showStatus("Store Assigned", "This device is assigned to " + storeLabel(store) + ".", "success");
+        return true;
+      } catch (error) {
+        console.error("Store tag save failed", error);
+        saveStoreButton.disabled = false;
+        saveStoreButton.textContent = "Save Store for This Device";
+        showStatus("Unable to Save Store", error && error.message ? error.message : String(error), "error");
+        return false;
+      }
+    }
+
+    const savedStore = localStorage.getItem("hme_store");
+    if (savedStore) storeSelect.value = savedStore;
+
+    storeSelect.addEventListener("change", function() {
+      saveStoreButton.disabled = !oneSignalReady || !selectedStore();
+      saveStoreButton.textContent = "Save Store for This Device";
+    });
+
+    saveStoreButton.addEventListener("click", saveStoreTag);
 
     if (isIOS() && !isStandalone()) {
       enableButton.textContent = "Add to Home Screen First";
@@ -104,12 +177,13 @@
       if (!oneSignalReady && (!isIOS() || isStandalone())) {
         enableButton.textContent = "Reload HME Alerts";
         enableButton.disabled = false;
-        showStatus("Notification Service Did Not Finish Loading", "Close this HME Alerts app completely, reopen it from the iPhone Home Screen, and try again. If this app was installed before today, remove it from the Home Screen and add it again.", "error");
+        showStatus("Notification Service Did Not Finish Loading", "Close HME Alerts completely, reopen it from the Home Screen, and try again.", "error");
         enableButton.onclick = function() { window.location.reload(); };
       }
     }, 12000);
 
     OneSignalDeferred.push(async function(OneSignal) {
+      OneSignalInstance = OneSignal;
       try {
         await OneSignal.init({
           appId: APP_ID,
@@ -119,6 +193,7 @@
         });
         oneSignalReady = true;
         clearTimeout(initTimeout);
+        saveStoreButton.disabled = !selectedStore();
       } catch (error) {
         console.error("OneSignal init failed", error);
         enableButton.textContent = "Notification Setup Error";
@@ -130,14 +205,19 @@
       const updateReadyState = function() {
         const optedIn = OneSignal.User.PushSubscription.optedIn;
         const subscriptionId = OneSignal.User.PushSubscription.id;
-        if (optedIn && subscriptionId) {
+        const store = selectedStore();
+        if (optedIn && subscriptionId && store) {
           enableButton.textContent = "✓ HME Alerts Enabled";
           enableButton.disabled = true;
-          showStatus("HME Alerts Enabled", "This device is registered with OneSignal and will receive HME alerts.", "success");
+          showStatus("HME Alerts Enabled", "This device is registered for " + storeLabel(store) + " HME alerts.", "success");
+        } else if (optedIn && subscriptionId && !store) {
+          enableButton.textContent = "✓ Notifications Enabled";
+          enableButton.disabled = true;
+          showStatus("Select Your Store", "Notifications are enabled. Select and save the store for this device.");
         } else {
           enableButton.textContent = "🔔 Enable HME Alerts";
           enableButton.disabled = false;
-          showStatus("Not Enabled", "Press Enable HME Alerts to subscribe this device.");
+          showStatus("Not Enabled", "Select a store, save it, then press Enable HME Alerts.");
         }
       };
 
@@ -146,6 +226,11 @@
 
       enableButton.onclick = null;
       enableButton.addEventListener("click", async function() {
+        if (!selectedStore()) {
+          showStatus("Select a Store First", "Choose and save the store assigned to this device before enabling alerts.", "error");
+          return;
+        }
+
         enableButton.disabled = true;
         enableButton.textContent = "Enabling…";
         showStatus("Enabling…", "Waiting for notification permission.");
@@ -154,6 +239,7 @@
           if (!OneSignal.Notifications.permission) await OneSignal.Notifications.requestPermission();
           if (!OneSignal.Notifications.permission && Notification.permission !== "granted") throw new Error("Notifications are blocked. Allow notifications for HME Alerts in iPhone Settings and try again.");
           await OneSignal.User.PushSubscription.optIn();
+          await saveStoreTag();
           await new Promise(resolve => setTimeout(resolve, 1500));
           updateReadyState();
           if (!OneSignal.User.PushSubscription.id) {
