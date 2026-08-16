@@ -111,6 +111,8 @@ def send_push(store_name, average):
         "contents": {
             "en": f"{store_name} has remained at or above {THRESHOLD} seconds for 5 minutes. Current Hour Average: {round(average)} seconds."
         },
+        "ios_sound": "default",
+        "android_sound": "default",
         "name": f"HME threshold alert - {store_name}",
         "url": "https://shurd080880-lgtm.github.io/kasselmann-hme-alerts/",
         "idempotency_key": str(uuid.uuid4()),
