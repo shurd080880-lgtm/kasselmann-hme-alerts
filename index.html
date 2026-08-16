@@ -83,7 +83,7 @@
       try {
         await OneSignal.init({
           appId: APP_ID,
-          serviceWorkerPath: "OneSignalSDKWorker.js",
+          serviceWorkerPath: "/kasselmann-hme-alerts/OneSignalSDKWorker.js",
           serviceWorkerParam: { scope: "/kasselmann-hme-alerts/" },
           notifyButton: { enable: false }
         });
@@ -91,33 +91,21 @@
         console.error("OneSignal init failed", error);
         enableButton.textContent = "Notification Setup Error";
         enableButton.disabled = true;
-        showStatus(
-          "Setup Error",
-          error && error.message ? error.message : String(error || "OneSignal could not initialize on this site."),
-          "error"
-        );
+        showStatus("Setup Error", error && error.message ? error.message : String(error || "OneSignal could not initialize on this site."), "error");
         return;
       }
 
       const updateReadyState = function() {
         const optedIn = OneSignal.User.PushSubscription.optedIn;
         const subscriptionId = OneSignal.User.PushSubscription.id;
-
         if (optedIn && subscriptionId) {
           enableButton.textContent = "✓ HME Alerts Enabled";
           enableButton.disabled = true;
-          showStatus(
-            "HME Alerts Enabled",
-            "This device is registered with OneSignal and will receive HME alerts.",
-            "success"
-          );
+          showStatus("HME Alerts Enabled", "This device is registered with OneSignal and will receive HME alerts.", "success");
         } else {
           enableButton.textContent = "🔔 Enable HME Alerts";
           enableButton.disabled = false;
-          showStatus(
-            "Not Enabled",
-            "Press Enable HME Alerts to subscribe this device."
-          );
+          showStatus("Not Enabled", "Press Enable HME Alerts to subscribe this device.");
         }
       };
 
@@ -128,42 +116,23 @@
         enableButton.disabled = true;
         enableButton.textContent = "Enabling…";
         showStatus("Enabling…", "Waiting for browser notification permission.");
-
         try {
-          if (!OneSignal.Notifications.isPushSupported()) {
-            throw new Error("Web push is not supported by this browser/device.");
-          }
-
-          if (!OneSignal.Notifications.permission) {
-            await OneSignal.Notifications.requestPermission();
-          }
-
-          if (!OneSignal.Notifications.permission && Notification.permission !== "granted") {
-            throw new Error("Notifications are blocked. Allow notifications for this site and try again.");
-          }
-
+          if (!OneSignal.Notifications.isPushSupported()) throw new Error("Web push is not supported by this browser/device.");
+          if (!OneSignal.Notifications.permission) await OneSignal.Notifications.requestPermission();
+          if (!OneSignal.Notifications.permission && Notification.permission !== "granted") throw new Error("Notifications are blocked. Allow notifications for this site and try again.");
           await OneSignal.User.PushSubscription.optIn();
           await new Promise(resolve => setTimeout(resolve, 1200));
           updateReadyState();
-
           if (!OneSignal.User.PushSubscription.id) {
             enableButton.textContent = "🔔 Try Again";
             enableButton.disabled = false;
-            showStatus(
-              "Permission Granted, Registration Pending",
-              "Browser permission is allowed, but OneSignal has not created the subscription yet. Refresh once and try again.",
-              "error"
-            );
+            showStatus("Permission Granted, Registration Pending", "Browser permission is allowed, but OneSignal has not created the subscription yet. Refresh once and try again.", "error");
           }
         } catch (error) {
           console.error("Enable push failed", error);
           enableButton.textContent = "🔔 Try Again";
           enableButton.disabled = false;
-          showStatus(
-            "Unable to Enable Alerts",
-            error && error.message ? error.message : String(error || "Push notifications could not be enabled."),
-            "error"
-          );
+          showStatus("Unable to Enable Alerts", error && error.message ? error.message : String(error || "Push notifications could not be enabled."), "error");
         }
       });
     });
