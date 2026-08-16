@@ -4,237 +4,67 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#111111" />
-
   <title>Kasselmann HME Alerts</title>
 
-  <script
-    src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js"
-    defer>
-  </script>
+  <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 
   <style>
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      font-family: Arial, Helvetica, sans-serif;
-      background: #f7f7f7;
-      color: #111;
-    }
-
-    .page {
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      padding: 48px 20px;
-    }
-
-    .container {
-      width: 100%;
-      max-width: 560px;
-      text-align: center;
-    }
-
-    .icon {
-      width: 62px;
-      height: 62px;
-      background: #111;
-      color: white;
-      border-radius: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 25px;
-      font-size: 30px;
-    }
-
-    h1 {
-      margin: 0;
-      font-size: 32px;
-    }
-
-    .subtitle {
-      margin-top: 10px;
-      font-size: 18px;
-      color: #666;
-    }
-
-    #enableButton {
-      width: 100%;
-      margin-top: 45px;
-      padding: 20px;
-      border: 0;
-      border-radius: 8px;
-      background: #171719;
-      color: white;
-      font-size: 18px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    #enableButton:disabled {
-      opacity: 0.65;
-      cursor: default;
-    }
-
-    .description {
-      margin: 26px auto 50px;
-      max-width: 500px;
-      line-height: 1.55;
-      color: #666;
-      font-size: 16px;
-    }
-
-    .section-title {
-      text-align: left;
-      font-size: 21px;
-      margin-bottom: 12px;
-    }
-
-    .steps {
-      background: white;
-      border: 1px solid #ddd;
-      border-radius: 10px;
-      padding: 10px 24px;
-      text-align: left;
-    }
-
-    .step {
-      display: flex;
-      gap: 16px;
-      align-items: flex-start;
-      padding: 17px 0;
-    }
-
-    .number {
-      min-width: 32px;
-      height: 32px;
-      background: #f1f1f1;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-    }
-
-    .step-text {
-      padding-top: 6px;
-      line-height: 1.4;
-    }
-
-    .status {
-      margin-top: 25px;
-      border: 1px solid #ddd;
-      background: white;
-      border-radius: 10px;
-      padding: 20px;
-      text-align: left;
-    }
-
-    .status-label {
-      font-size: 12px;
-      color: #777;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    #statusText {
-      font-size: 18px;
-      font-weight: bold;
-      margin-top: 5px;
-    }
-
-    #statusDetail {
-      margin-top: 6px;
-      font-size: 14px;
-      color: #666;
-    }
-
-    .success {
-      border-color: #6bbf73;
-      background: #f4fff5;
-    }
-
-    .error {
-      border-color: #e6a199;
-      background: #fff5f3;
-    }
-
-    @media (max-width: 600px) {
-      .page {
-        padding-top: 30px;
-      }
-
-      h1 {
-        font-size: 27px;
-      }
-    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: #f7f7f7; color: #111; }
+    .page { min-height: 100vh; display: flex; justify-content: center; padding: 48px 20px; }
+    .container { width: 100%; max-width: 560px; text-align: center; }
+    .icon { width: 62px; height: 62px; background: #111; color: white; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 25px; font-size: 30px; }
+    h1 { margin: 0; font-size: 32px; }
+    .subtitle { margin-top: 10px; font-size: 18px; color: #666; }
+    #enableButton { width: 100%; margin-top: 45px; padding: 20px; border: 0; border-radius: 8px; background: #171719; color: white; font-size: 18px; font-weight: bold; cursor: pointer; }
+    #enableButton:disabled { opacity: 0.65; cursor: default; }
+    .description { margin: 26px auto 50px; max-width: 500px; line-height: 1.55; color: #666; font-size: 16px; }
+    .section-title { text-align: left; font-size: 21px; margin-bottom: 12px; }
+    .steps { background: white; border: 1px solid #ddd; border-radius: 10px; padding: 10px 24px; text-align: left; }
+    .step { display: flex; gap: 16px; align-items: flex-start; padding: 17px 0; }
+    .number { min-width: 32px; height: 32px; background: #f1f1f1; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+    .step-text { padding-top: 6px; line-height: 1.4; }
+    .status { margin-top: 25px; border: 1px solid #ddd; background: white; border-radius: 10px; padding: 20px; text-align: left; }
+    .status-label { font-size: 12px; color: #777; text-transform: uppercase; letter-spacing: 0.5px; }
+    #statusText { font-size: 18px; font-weight: bold; margin-top: 5px; }
+    #statusDetail { margin-top: 6px; font-size: 14px; color: #666; }
+    .success { border-color: #6bbf73; background: #f4fff5; }
+    .error { border-color: #e6a199; background: #fff5f3; }
+    @media (max-width: 600px) { .page { padding-top: 30px; } h1 { font-size: 27px; } }
   </style>
 </head>
 
 <body>
   <div class="page">
     <main class="container">
-
       <div class="icon">🔔</div>
-
       <h1>Kasselmann HME Alerts</h1>
+      <div class="subtitle">Drive-Thru Performance Notifications</div>
 
-      <div class="subtitle">
-        Drive-Thru Performance Notifications
-      </div>
-
-      <button id="enableButton">
-        🔔 Enable HME Alerts
-      </button>
+      <button id="enableButton" disabled>Loading Notification Service…</button>
 
       <div class="description">
-        Receive an alert when a Kasselmann location's Current Hour Average
-        remains at or above <strong>250 seconds for 5 minutes</strong>.
+        Receive an alert when a Kasselmann location's Current Hour Average remains at or above
+        <strong>250 seconds for 5 minutes</strong>.
       </div>
 
       <h2 class="section-title">How It Works</h2>
-
       <div class="steps">
-        <div class="step">
-          <div class="number">1</div>
-          <div class="step-text">
-            Enable notifications on this device.
-          </div>
-        </div>
-
-        <div class="step">
-          <div class="number">2</div>
-          <div class="step-text">
-            Keep notifications allowed.
-          </div>
-        </div>
-
-        <div class="step">
-          <div class="number">3</div>
-          <div class="step-text">
-            HME alerts will be delivered automatically when a location
-            exceeds the alert threshold.
-          </div>
-        </div>
+        <div class="step"><div class="number">1</div><div class="step-text">Enable notifications on this device.</div></div>
+        <div class="step"><div class="number">2</div><div class="step-text">Keep notifications allowed.</div></div>
+        <div class="step"><div class="number">3</div><div class="step-text">HME alerts will be delivered automatically when a location exceeds the alert threshold.</div></div>
       </div>
 
       <div id="statusBox" class="status">
         <div class="status-label">Notification Status</div>
-        <div id="statusText">Not Enabled</div>
-        <div id="statusDetail">
-          Press Enable HME Alerts to subscribe this device.
-        </div>
+        <div id="statusText">Initializing…</div>
+        <div id="statusDetail">Connecting to the notification service.</div>
       </div>
-
     </main>
   </div>
 
   <script>
     const APP_ID = "48b2684c-c9e3-466c-afe5-24779f7b2096";
-
     const enableButton = document.getElementById("enableButton");
     const statusBox = document.getElementById("statusBox");
     const statusText = document.getElementById("statusText");
@@ -243,102 +73,103 @@
     function showStatus(title, detail, type = "") {
       statusText.textContent = title;
       statusDetail.textContent = detail;
-
       statusBox.classList.remove("success", "error");
-
-      if (type) {
-        statusBox.classList.add(type);
-      }
+      if (type) statusBox.classList.add(type);
     }
 
-    window.OneSignalDeferred =
-      window.OneSignalDeferred || [];
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
 
     OneSignalDeferred.push(async function(OneSignal) {
-
-      await OneSignal.init({
-        appId: APP_ID,
-        serviceWorkerPath: "/kasselmann-hme-alerts/OneSignalSDKWorker.js",
-        serviceWorkerParam: {
-          scope: "/kasselmann-hme-alerts/"
-        },
-        notifyButton: {
-          enable: false
-        },
-        allowLocalhostAsSecureOrigin: true
-      });
-
       try {
-        if (OneSignal.User.PushSubscription.optedIn) {
-          showStatus(
-            "HME Alerts Enabled",
-            "This device is subscribed to HME push notifications.",
-            "success"
-          );
-
-          enableButton.textContent = "✓ HME Alerts Enabled";
-          enableButton.disabled = true;
-        }
+        await OneSignal.init({
+          appId: APP_ID,
+          serviceWorkerPath: "kasselmann-hme-alerts/OneSignalSDKWorker.js",
+          serviceWorkerParam: { scope: "/kasselmann-hme-alerts/" },
+          notifyButton: { enable: false }
+        });
       } catch (error) {
-        console.log(error);
+        console.error("OneSignal init failed", error);
+        enableButton.textContent = "Notification Setup Error";
+        enableButton.disabled = true;
+        showStatus(
+          "Setup Error",
+          error && error.message ? error.message : "OneSignal could not initialize on this site.",
+          "error"
+        );
+        return;
       }
 
-      enableButton.addEventListener("click", async function() {
+      const updateReadyState = function() {
+        const optedIn = OneSignal.User.PushSubscription.optedIn;
+        const subscriptionId = OneSignal.User.PushSubscription.id;
 
-        enableButton.disabled = true;
-
-        showStatus(
-          "Enabling...",
-          "Waiting for notification permission."
-        );
-
-        try {
-
-          const permission =
-            await OneSignal.Notifications.requestPermission();
-
-          if (
-            permission === true ||
-            Notification.permission === "granted"
-          ) {
-
-            await OneSignal.User.PushSubscription.optIn();
-
-            showStatus(
-              "HME Alerts Enabled",
-              "This device will receive Kasselmann HME alerts.",
-              "success"
-            );
-
-            enableButton.textContent =
-              "✓ HME Alerts Enabled";
-
-          } else {
-
-            showStatus(
-              "Notifications Blocked",
-              "Please allow notifications in your browser settings and try again.",
-              "error"
-            );
-
-            enableButton.disabled = false;
-          }
-
-        } catch (error) {
-
-          console.error(error);
-
+        if (optedIn && subscriptionId) {
+          enableButton.textContent = "✓ HME Alerts Enabled";
+          enableButton.disabled = true;
           showStatus(
-            "Unable to Enable Alerts",
-            error.message || "Push notifications could not be enabled.",
-            "error"
+            "HME Alerts Enabled",
+            "This device is registered with OneSignal and will receive HME alerts.",
+            "success"
           );
-
+        } else {
+          enableButton.textContent = "🔔 Enable HME Alerts";
           enableButton.disabled = false;
+          showStatus(
+            "Not Enabled",
+            "Press Enable HME Alerts to subscribe this device."
+          );
         }
+      };
 
+      OneSignal.User.PushSubscription.addEventListener("change", function() {
+        updateReadyState();
       });
 
+      updateReadyState();
+
+      enableButton.addEventListener("click", async function() {
+        enableButton.disabled = true;
+        enableButton.textContent = "Enabling…";
+        showStatus("Enabling…", "Waiting for browser notification permission.");
+
+        try {
+          if (!OneSignal.Notifications.isPushSupported()) {
+            throw new Error("Web push is not supported by this browser/device.");
+          }
+
+          if (!OneSignal.Notifications.permission) {
+            await OneSignal.Notifications.requestPermission();
+          }
+
+          if (!OneSignal.Notifications.permission && Notification.permission !== "granted") {
+            throw new Error("Notifications are blocked. Allow notifications for this site and try again.");
+          }
+
+          await OneSignal.User.PushSubscription.optIn();
+
+          await new Promise(resolve => setTimeout(resolve, 1200));
+          updateReadyState();
+
+          if (!OneSignal.User.PushSubscription.id) {
+            enableButton.textContent = "🔔 Try Again";
+            enableButton.disabled = false;
+            showStatus(
+              "Permission Granted, Registration Pending",
+              "Browser permission is allowed, but OneSignal has not created the subscription yet. Refresh once and try again.",
+              "error"
+            );
+          }
+        } catch (error) {
+          console.error("Enable push failed", error);
+          enableButton.textContent = "🔔 Try Again";
+          enableButton.disabled = false;
+          showStatus(
+            "Unable to Enable Alerts",
+            error && error.message ? error.message : "Push notifications could not be enabled.",
+            "error"
+          );
+        }
+      });
     });
   </script>
 </body>
