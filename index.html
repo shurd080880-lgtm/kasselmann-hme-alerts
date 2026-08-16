@@ -27,7 +27,7 @@
     .status { margin-top: 25px; border: 1px solid #ddd; background: white; border-radius: 10px; padding: 20px; text-align: left; }
     .status-label { font-size: 12px; color: #777; text-transform: uppercase; letter-spacing: 0.5px; }
     #statusText { font-size: 18px; font-weight: bold; margin-top: 5px; }
-    #statusDetail { margin-top: 6px; font-size: 14px; color: #666; }
+    #statusDetail { margin-top: 6px; font-size: 14px; color: #666; word-break: break-word; }
     .success { border-color: #6bbf73; background: #f4fff5; }
     .error { border-color: #e6a199; background: #fff5f3; }
     @media (max-width: 600px) { .page { padding-top: 30px; } h1 { font-size: 27px; } }
@@ -83,8 +83,8 @@
       try {
         await OneSignal.init({
           appId: APP_ID,
-          serviceWorkerPath: "kasselmann-hme-alerts/push/onesignal/OneSignalSDKWorker.js",
-          serviceWorkerParam: { scope: "/kasselmann-hme-alerts/push/onesignal/" },
+          serviceWorkerPath: "OneSignalSDKWorker.js",
+          serviceWorkerParam: { scope: "/kasselmann-hme-alerts/" },
           notifyButton: { enable: false }
         });
       } catch (error) {
@@ -93,7 +93,7 @@
         enableButton.disabled = true;
         showStatus(
           "Setup Error",
-          error && error.message ? error.message : "OneSignal could not initialize on this site.",
+          error && error.message ? error.message : String(error || "OneSignal could not initialize on this site."),
           "error"
         );
         return;
@@ -121,10 +121,7 @@
         }
       };
 
-      OneSignal.User.PushSubscription.addEventListener("change", function() {
-        updateReadyState();
-      });
-
+      OneSignal.User.PushSubscription.addEventListener("change", updateReadyState);
       updateReadyState();
 
       enableButton.addEventListener("click", async function() {
@@ -146,7 +143,6 @@
           }
 
           await OneSignal.User.PushSubscription.optIn();
-
           await new Promise(resolve => setTimeout(resolve, 1200));
           updateReadyState();
 
@@ -165,7 +161,7 @@
           enableButton.disabled = false;
           showStatus(
             "Unable to Enable Alerts",
-            error && error.message ? error.message : "Push notifications could not be enabled.",
+            error && error.message ? error.message : String(error || "Push notifications could not be enabled."),
             "error"
           );
         }
