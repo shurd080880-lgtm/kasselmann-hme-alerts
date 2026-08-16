@@ -65,9 +65,6 @@ def extract_store_readings(payload):
         if not store_name:
             continue
 
-        # The HME response contains nested dictionaries. Only process each
-        # store-shaped object once, then search inside that store for its
-        # CurrentHour bucket.
         marker = id(obj)
         if marker in seen_store_objects:
             continue
@@ -96,7 +93,7 @@ def send_push(store_name, average):
     body = {
         "app_id": APP_ID,
         "target_channel": "push",
-        "included_segments": ["Subscribed Users"],
+        "included_segments": ["Total Subscriptions"],
         "headings": {"en": "🚨 Kasselmann HME Alert"},
         "contents": {
             "en": f"{store_name} has remained at or above {THRESHOLD} seconds for 5 minutes. Current Hour Average: {round(average)} seconds."
@@ -126,7 +123,6 @@ def main():
     print("Current HME readings:", first)
     print(f"Stores found: {len(first)}")
 
-    # Reset stores that have recovered below the threshold.
     for store, avg in first.items():
         if avg < THRESHOLD and alerted.get(store):
             alerted[store] = False
