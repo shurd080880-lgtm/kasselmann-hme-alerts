@@ -102,7 +102,7 @@ def send_push(store_name, average):
     store_tag = STORE_TAGS.get(store_name)
     if not store_tag:
         print(f"No OneSignal store tag mapping for {store_name}; alert not sent.")
-        return
+        return False
 
     tag_key = f"hme_store_{store_tag}"
     body = {
@@ -131,7 +131,13 @@ def send_push(store_name, average):
         method="POST",
         body=body,
     )
-    print(f"Sent OneSignal alert for {store_name} to {tag_key}=1: {result}")
+    print(f"OneSignal response for {store_name} to {tag_key}=1: {result}")
+    errors = result.get("errors") if isinstance(result, dict) else None
+    notification_id = result.get("id") if isinstance(result, dict) else None
+    success = bool(notification_id) and not errors
+    if not success:
+        print(f"Alert delivery failed for {store_name}; keeping it eligible for retry.")
+    return success
 
 
 def process_readings(state, readings, now):
@@ -149,8 +155,11 @@ def process_readings(state, readings, now):
             print(f"{store}: {round(avg)} sec, above threshold for {int(elapsed)} sec, {int(remaining)} sec remaining.")
 
             if elapsed >= REQUIRED_SECONDS and not alerted.get(store, False):
-                send_push(store, avg)
-                alerted[store] = True
+                if send_push(store, avg):
+                    alerted[store] = True
+                    print(f"Marked {store} alerted after confirmed OneSignal acceptance.")
+                else:
+                    alerted[store] = False
         else:
             if store in above_since:
                 print(f"{store} recovered to {round(avg)} seconds; resetting 5-minute timer.")
