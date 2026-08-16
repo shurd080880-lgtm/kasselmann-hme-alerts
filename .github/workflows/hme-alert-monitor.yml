@@ -2,7 +2,7 @@ name: HME Alert Monitor
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "*/10 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -28,12 +28,13 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Check HME and send alerts
+      - name: Check HME continuously and send alerts
         env:
           ONESIGNAL_API_KEY: ${{ secrets.ONESIGNAL_API_KEY }}
         run: python hme_monitor.py
 
       - name: Save alert state
+        if: always()
         run: |
           if git diff --quiet -- hme-alert-state.json; then
             echo "No state change to save."
