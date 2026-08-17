@@ -1,21 +1,10 @@
-name: HME Alert Monitor
+name: HME Alert Monitor (Manual Backup)
 
 on:
-  schedule:
-    # Run every 10 minutes, offset from common :00/:10 cron boundaries to reduce GitHub scheduler delays.
-    - cron: "2,12,22,32,42,52 * * * *"
-  push:
-    paths:
-      - "hme_monitor.py"
-      - ".github/workflows/hme-alert-monitor.yml"
   workflow_dispatch:
 
 permissions:
-  contents: write
-
-concurrency:
-  group: hme-alert-monitor
-  cancel-in-progress: false
+  contents: read
 
 jobs:
   monitor:
@@ -25,28 +14,13 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
-      - name: Check HME continuously and send alerts
+      - name: Run manual backup monitor
         env:
           ONESIGNAL_API_KEY: ${{ secrets.ONESIGNAL_API_KEY }}
-        run: python hme_monitor.py
-
-      - name: Save alert state
-        if: always()
-        run: |
-          if git diff --quiet -- hme-alert-state.json; then
-            echo "No state change to save."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add hme-alert-state.json
-          git commit -m "Update HME alert state"
-          git push
+        run: timeout 10m python hme_monitor.py || test $? -eq 124
