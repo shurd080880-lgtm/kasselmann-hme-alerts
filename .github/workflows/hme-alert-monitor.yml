@@ -2,7 +2,8 @@ name: HME Alert Monitor
 
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    # Run every 10 minutes, offset from common :00/:10 cron boundaries to reduce GitHub scheduler delays.
+    - cron: "2,12,22,32,42,52 * * * *"
   push:
     paths:
       - "hme_monitor.py"
