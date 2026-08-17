@@ -19,14 +19,14 @@ jobs:
 
           app_id = "48b2684c-c9e3-466c-afe5-24779f7b2096"
           api_key = os.environ["ONESIGNAL_API_KEY"]
-          # Compact tag scheme: stores 1-4 use hme_a and stores 5-8 use hme_b.
-          # Buckner is store 7 => bit value 4 in hme_b. Match values whose Buckner bit is set.
-          buckner_values = [str(v) for v in range(4, 16) if v & 4]
+          # Same compact tag and bit-mask targeting used by the production HME monitor.
+          # Buckner is bit 4 in hme_group_b.
+          buckner_values = [str(v) for v in range(16) if v & 4]
           filters = []
           for i, value in enumerate(buckner_values):
               if i:
                   filters.append({"operator": "OR"})
-              filters.append({"field": "tag", "key": "hme_b", "relation": "=", "value": value})
+              filters.append({"field": "tag", "key": "hme_group_b", "relation": "=", "value": value})
 
           payload = {
               "app_id": app_id,
