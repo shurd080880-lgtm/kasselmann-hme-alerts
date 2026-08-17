@@ -11,11 +11,9 @@ APP_ID = "48b2684c-c9e3-466c-afe5-24779f7b2096"
 THRESHOLD = 250
 REQUIRED_SECONDS = 5 * 60
 CHECK_INTERVAL_SECONDS = 60
-MONITOR_DURATION_SECONDS = 9 * 60
 STATE_FILE = Path("hme-alert-state.json")
 
 # Each phone stores all 8 location choices in only two OneSignal tags.
-# This avoids the Free-plan 2-tags-per-user limit while preserving multi-store selection.
 STORE_TARGETS = {
     "Pendleton-Kasselmann": ("hme_group_a", 1),
     "Eminence - Kasselmann": ("hme_group_a", 2),
@@ -97,8 +95,6 @@ def fetch_readings():
 
 
 def build_store_filters(tag_key, bit):
-    # OneSignal tag filters do not support bitwise operations, so match the eight
-    # possible 4-bit mask values that contain this store's bit.
     matching_values = [str(mask) for mask in range(16) if mask & bit]
     filters = []
     for index, value in enumerate(matching_values):
@@ -111,11 +107,11 @@ def build_store_filters(tag_key, bit):
 def send_push(store_name, average):
     api_key = os.environ.get("ONESIGNAL_API_KEY", "").strip()
     if not api_key:
-        raise RuntimeError("Missing ONESIGNAL_API_KEY GitHub Actions secret")
+        raise RuntimeError("Missing ONESIGNAL_API_KEY environment variable")
 
     target = STORE_TARGETS.get(store_name)
     if not target:
-        print(f"No OneSignal target mapping for {store_name}; alert not sent.")
+        print(f"No OneSignal target mapping for {store_name}; alert not sent.", flush=True)
         return False
 
     tag_key, bit = target
@@ -143,12 +139,12 @@ def send_push(store_name, average):
         method="POST",
         body=body,
     )
-    print(f"OneSignal response for {store_name} using {tag_key} bit {bit}: {result}")
+    print(f"OneSignal response for {store_name} using {tag_key} bit {bit}: {result}", flush=True)
     errors = result.get("errors") if isinstance(result, dict) else None
     notification_id = result.get("id") if isinstance(result, dict) else None
     success = bool(notification_id) and not errors
     if not success:
-        print(f"Alert delivery failed for {store_name}; keeping it eligible for retry.")
+        print(f"Alert delivery failed for {store_name}; keeping it eligible for retry.", flush=True)
     return success
 
 
@@ -160,44 +156,40 @@ def process_readings(state, readings, now):
         if avg >= THRESHOLD:
             if store not in above_since:
                 above_since[store] = now
-                print(f"{store} crossed threshold at {round(avg)} seconds; starting 5-minute timer.")
+                print(f"{store} crossed threshold at {round(avg)} seconds; starting 5-minute timer.", flush=True)
 
             elapsed = max(0, now - float(above_since[store]))
             remaining = max(0, REQUIRED_SECONDS - elapsed)
-            print(f"{store}: {round(avg)} sec, above threshold for {int(elapsed)} sec, {int(remaining)} sec remaining.")
+            print(f"{store}: {round(avg)} sec, above threshold for {int(elapsed)} sec, {int(remaining)} sec remaining.", flush=True)
 
             if elapsed >= REQUIRED_SECONDS and not alerted.get(store, False):
                 if send_push(store, avg):
                     alerted[store] = True
-                    print(f"Marked {store} alerted after confirmed OneSignal acceptance.")
+                    print(f"Marked {store} alerted after confirmed OneSignal acceptance.", flush=True)
                 else:
                     alerted[store] = False
         else:
             if store in above_since:
-                print(f"{store} recovered to {round(avg)} seconds; resetting 5-minute timer.")
+                print(f"{store} recovered to {round(avg)} seconds; resetting 5-minute timer.", flush=True)
                 above_since.pop(store, None)
             if alerted.get(store, False):
-                print(f"{store} recovered below threshold; allowing a future alert.")
+                print(f"{store} recovered below threshold; allowing a future alert.", flush=True)
                 alerted[store] = False
 
 
 def main():
     state = load_state()
-    stop_at = time.time() + MONITOR_DURATION_SECONDS
-    sample = 0
+    print("Kasselmann HME monitor started in continuous mode.", flush=True)
 
     while True:
-        sample += 1
-        now = time.time()
-        readings = fetch_readings()
-        print(f"Sample {sample} HME readings: {readings}")
-        print(f"Stores found: {len(readings)}")
-        process_readings(state, readings, now)
-        save_state(state)
-
-        if time.time() >= stop_at:
-            print("Continuous monitoring window complete.")
-            break
+        try:
+            now = time.time()
+            readings = fetch_readings()
+            print(f"HME readings: {readings}", flush=True)
+            process_readings(state, readings, now)
+            save_state(state)
+        except Exception as error:
+            print(f"Monitor error: {error}. Retrying in {CHECK_INTERVAL_SECONDS} seconds.", flush=True)
 
         time.sleep(CHECK_INTERVAL_SECONDS)
 
