@@ -14,15 +14,17 @@ CHECK_INTERVAL_SECONDS = 60
 MONITOR_DURATION_SECONDS = 9 * 60
 STATE_FILE = Path("hme-alert-state.json")
 
-STORE_TAGS = {
-    "Pendleton-Kasselmann": "pendleton",
-    "Eminence - Kasselmann": "eminence",
-    "LaGrange -Kasselmann": "lagrange",
-    "Hanover- Kasselmann": "hanover",
-    "Madison- Kasselmann": "madison",
-    "Clarksville-Kasselmann": "clarksville",
-    "Buckner-Kasselmann": "buckner",
-    "Veterans-Kasselmann": "veterans",
+# Each phone stores all 8 location choices in only two OneSignal tags.
+# This avoids the Free-plan 2-tags-per-user limit while preserving multi-store selection.
+STORE_TARGETS = {
+    "Pendleton-Kasselmann": ("hme_group_a", 1),
+    "Eminence - Kasselmann": ("hme_group_a", 2),
+    "LaGrange -Kasselmann": ("hme_group_a", 4),
+    "Hanover- Kasselmann": ("hme_group_a", 8),
+    "Madison- Kasselmann": ("hme_group_b", 1),
+    "Clarksville-Kasselmann": ("hme_group_b", 2),
+    "Buckner-Kasselmann": ("hme_group_b", 4),
+    "Veterans-Kasselmann": ("hme_group_b", 8),
 }
 
 
@@ -94,23 +96,33 @@ def fetch_readings():
     return readings
 
 
+def build_store_filters(tag_key, bit):
+    # OneSignal tag filters do not support bitwise operations, so match the eight
+    # possible 4-bit mask values that contain this store's bit.
+    matching_values = [str(mask) for mask in range(16) if mask & bit]
+    filters = []
+    for index, value in enumerate(matching_values):
+        if index:
+            filters.append({"operator": "OR"})
+        filters.append({"field": "tag", "key": tag_key, "relation": "=", "value": value})
+    return filters
+
+
 def send_push(store_name, average):
     api_key = os.environ.get("ONESIGNAL_API_KEY", "").strip()
     if not api_key:
         raise RuntimeError("Missing ONESIGNAL_API_KEY GitHub Actions secret")
 
-    store_tag = STORE_TAGS.get(store_name)
-    if not store_tag:
-        print(f"No OneSignal store tag mapping for {store_name}; alert not sent.")
+    target = STORE_TARGETS.get(store_name)
+    if not target:
+        print(f"No OneSignal target mapping for {store_name}; alert not sent.")
         return False
 
-    tag_key = f"hme_store_{store_tag}"
+    tag_key, bit = target
     body = {
         "app_id": APP_ID,
         "target_channel": "push",
-        "filters": [
-            {"field": "tag", "key": tag_key, "relation": "=", "value": "1"}
-        ],
+        "filters": build_store_filters(tag_key, bit),
         "headings": {"en": f"🚨 {store_name} HME Alert"},
         "contents": {
             "en": f"{store_name} has remained at or above {THRESHOLD} seconds for 5 minutes. Current Hour Average: {round(average)} seconds."
@@ -131,7 +143,7 @@ def send_push(store_name, average):
         method="POST",
         body=body,
     )
-    print(f"OneSignal response for {store_name} to {tag_key}=1: {result}")
+    print(f"OneSignal response for {store_name} using {tag_key} bit {bit}: {result}")
     errors = result.get("errors") if isinstance(result, dict) else None
     notification_id = result.get("id") if isinstance(result, dict) else None
     success = bool(notification_id) and not errors
