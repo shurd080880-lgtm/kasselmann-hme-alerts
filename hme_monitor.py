@@ -3,7 +3,9 @@ import os
 import time
 import urllib.request
 import uuid
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 HME_URL = "https://hme-live2-leaderboard.azurewebsites.net/api/cib/lbdata/?storeUID=C261A68011D84960B705E846BC287752"
 ONESIGNAL_URL = "https://api.onesignal.com/notifications?c=push"
@@ -12,6 +14,7 @@ THRESHOLD = 250
 REQUIRED_SECONDS = 5 * 60
 CHECK_INTERVAL_SECONDS = 60
 STATE_FILE = Path("hme-alert-state.json")
+LOCAL_TIME_ZONE = ZoneInfo("America/New_York")
 
 # Each phone stores all 8 location choices in only two OneSignal tags.
 STORE_TARGETS = {
@@ -31,7 +34,8 @@ def http_json(url, headers=None, method="GET", body=None):
     if body is not None:
         req.data = json.dumps(body).encode("utf-8")
     with urllib.request.urlopen(req, timeout=30) as response:
-        return json.loads(response.read().decode("utf-8"))
+        text = response.read().decode("utf-8")
+        return json.loads(text) if text else {}
 
 
 def load_state():
@@ -104,6 +108,38 @@ def build_store_filters(tag_key, bit):
     return filters
 
 
+def log_alert_to_google_sheet(store_name, average, notification_id):
+    webhook_url = os.environ.get("GOOGLE_SHEET_WEBHOOK_URL", "").strip()
+    webhook_secret = os.environ.get("GOOGLE_SHEET_WEBHOOK_SECRET", "").strip()
+    if not webhook_url:
+        print("Google Sheet logging is not configured; alert was still sent.", flush=True)
+        return
+
+    now = datetime.now(LOCAL_TIME_ZONE)
+    payload = {
+        "secret": webhook_secret,
+        "date": now.strftime("%m/%d/%Y"),
+        "time": now.strftime("%I:%M:%S %p"),
+        "location": store_name,
+        "average_seconds": round(average),
+        "threshold_seconds": THRESHOLD,
+        "required_minutes": REQUIRED_SECONDS // 60,
+        "result": "Alert Sent",
+        "onesignal_notification_id": notification_id,
+    }
+
+    try:
+        result = http_json(
+            webhook_url,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+            body=payload,
+        )
+        print(f"Google Sheet log response for {store_name}: {result}", flush=True)
+    except Exception as error:
+        print(f"Google Sheet logging failed for {store_name}: {error}", flush=True)
+
+
 def send_push(store_name, average):
     api_key = os.environ.get("ONESIGNAL_API_KEY", "").strip()
     if not api_key:
@@ -143,7 +179,9 @@ def send_push(store_name, average):
     errors = result.get("errors") if isinstance(result, dict) else None
     notification_id = result.get("id") if isinstance(result, dict) else None
     success = bool(notification_id) and not errors
-    if not success:
+    if success:
+        log_alert_to_google_sheet(store_name, average, notification_id)
+    else:
         print(f"Alert delivery failed for {store_name}; keeping it eligible for retry.", flush=True)
     return success
 
