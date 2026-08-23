@@ -11,14 +11,39 @@
   <title>Kasselmann HME Alerts</title>
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
   <style>
-    *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f7f7f7;color:#111}.page{min-height:100vh;display:flex;justify-content:center;padding:40px 18px}.container{width:100%;max-width:560px;text-align:center}.icon{width:62px;height:62px;background:#111;color:#fff;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 22px;font-size:30px}h1{margin:0;font-size:30px}.subtitle{margin:8px 0 28px;color:#666;font-size:17px}.store-box{text-align:left}.store-box>label{display:block;font-weight:700;margin-bottom:10px}.store-list{background:#fff;border:1px solid #ccc;border-radius:10px;padding:8px 14px}.store-option{display:flex;gap:12px;align-items:center;padding:11px 2px;border-bottom:1px solid #eee;font-size:17px}.store-option:last-child{border-bottom:0}.store-option input{width:20px;height:20px}button{width:100%;border-radius:8px;font-weight:700;font-size:16px;cursor:pointer}#saveStoreButton{margin-top:12px;padding:14px;border:1px solid #171719;background:#fff;color:#171719}#enableButton{margin-top:18px;padding:20px;border:0;background:#171719;color:#fff;font-size:18px}button:disabled{opacity:.6;cursor:default}.description{margin:24px auto 34px;line-height:1.5;color:#666}.status{margin-top:22px;border:1px solid #ddd;background:#fff;border-radius:10px;padding:18px;text-align:left}.status-label{font-size:12px;color:#777;text-transform:uppercase}.status-title{font-size:18px;font-weight:700;margin-top:5px}.status-detail{margin-top:6px;color:#666;font-size:14px;word-break:break-word}.success{border-color:#6bbf73;background:#f4fff5}.error{border-color:#e6a199;background:#fff5f3}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f7f7f7;color:#111}
+    .page{min-height:100vh;display:flex;justify-content:center;padding:40px 18px}
+    .container{width:100%;max-width:560px;text-align:center}
+    .icon{width:62px;height:62px;background:#111;color:#fff;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 22px;font-size:30px}
+    h1{margin:0;font-size:30px}
+    .subtitle{margin:8px 0 28px;color:#666;font-size:17px}
+    .store-box,.alert-box{text-align:left}
+    .store-box>label,.alert-box>label{display:block;font-weight:700;margin-bottom:10px}
+    .store-list,.alert-list{background:#fff;border:1px solid #ccc;border-radius:10px;padding:8px 14px}
+    .store-option,.alert-option{display:flex;gap:12px;align-items:center;padding:11px 2px;border-bottom:1px solid #eee;font-size:17px}
+    .store-option:last-child,.alert-option:last-child{border-bottom:0}
+    .store-option input,.alert-option input{width:20px;height:20px}
+    .alert-box{margin-top:18px}
+    .alert-note{font-size:14px;color:#666;line-height:1.4;margin-top:8px}
+    button{width:100%;border-radius:8px;font-weight:700;font-size:16px;cursor:pointer}
+    #saveStoreButton{margin-top:12px;padding:14px;border:1px solid #171719;background:#fff;color:#171719}
+    #enableButton{margin-top:18px;padding:20px;border:0;background:#171719;color:#fff;font-size:18px}
+    button:disabled{opacity:.6;cursor:default}
+    .description{margin:24px auto 34px;line-height:1.5;color:#666}
+    .status{margin-top:22px;border:1px solid #ddd;background:#fff;border-radius:10px;padding:18px;text-align:left}
+    .status-label{font-size:12px;color:#777;text-transform:uppercase}
+    .status-title{font-size:18px;font-weight:700;margin-top:5px}
+    .status-detail{margin-top:6px;color:#666;font-size:14px;word-break:break-word}
+    .success{border-color:#6bbf73;background:#f4fff5}
+    .error{border-color:#e6a199;background:#fff5f3}
   </style>
 </head>
 <body>
 <div class="page"><main class="container">
   <div class="icon">🔔</div>
-  <h1>Kasselmann HME Alerts</h1>
-  <div class="subtitle">Drive-Thru Performance Notifications</div>
+  <h1>Kasselmann Alerts</h1>
+  <div class="subtitle">Drive-Thru & Labor Performance Notifications</div>
 
   <div class="store-box">
     <label>Select the locations this device should receive alerts for</label>
@@ -32,11 +57,20 @@
       <label class="store-option"><input type="checkbox" value="buckner"> Buckner</label>
       <label class="store-option"><input type="checkbox" value="veterans"> Veterans</label>
     </div>
-    <button id="saveStoreButton" disabled>Save Locations for This Device</button>
   </div>
 
+  <div class="alert-box">
+    <label>Notification Types</label>
+    <div class="alert-list">
+      <label class="alert-option"><input type="checkbox" id="hmeAlerts" checked disabled> HME Drive-Thru Alerts</label>
+      <label class="alert-option"><input type="checkbox" id="laborAlerts"> Labor Alerts (25% or higher)</label>
+    </div>
+    <div class="alert-note">Labor alerts are optional. Turning them on will only send labor alerts for the locations selected above.</div>
+  </div>
+
+  <button id="saveStoreButton" disabled>Save Settings for This Device</button>
   <button id="enableButton" disabled>Loading Notification Service…</button>
-  <div class="description">Alerts are sent when a selected location's Current Hour Average remains at or above <strong>250 seconds for 5 minutes</strong>.</div>
+  <div class="description">HME alerts are sent when a selected location's Current Hour Average remains at or above <strong>250 seconds for 5 minutes</strong>. Labor alerts are sent when a completed hour is <strong>25% or higher</strong>.</div>
 
   <div id="statusBox" class="status">
     <div class="status-label">Notification Status</div>
@@ -54,9 +88,11 @@ const STORES = {
 const GROUP_A = ["pendleton","eminence","lagrange","hanover"];
 const GROUP_B = ["madison","clarksville","buckner","veterans"];
 const OLD_TAGS = Object.keys(STORES).map(code => "hme_store_" + code);
+const LABOR_FLAG = 16;
 
 const enableButton = document.getElementById("enableButton");
 const saveStoreButton = document.getElementById("saveStoreButton");
+const laborAlerts = document.getElementById("laborAlerts");
 const statusBox = document.getElementById("statusBox");
 const statusText = document.getElementById("statusText");
 const statusDetail = document.getElementById("statusDetail");
@@ -68,6 +104,8 @@ let saving = false;
 function selectedStores(){ return checkboxes.filter(c=>c.checked).map(c=>c.value); }
 function selectedLabels(){ return selectedStores().map(s=>STORES[s]).join(", "); }
 function maskFor(group, selected){ return group.reduce((mask,code,i)=> selected.includes(code) ? mask | (1<<i) : mask, 0); }
+function encodedMask(group, selected){ return maskFor(group, selected) + (laborAlerts.checked ? LABOR_FLAG : 0); }
+function laborLabel(){ return laborAlerts.checked ? "Labor Alerts ON" : "Labor Alerts OFF"; }
 function showStatus(title,detail,type=""){
   statusText.textContent=title; statusDetail.textContent=detail;
   statusBox.classList.remove("success","error"); if(type) statusBox.classList.add(type);
@@ -79,10 +117,14 @@ let saved=[];
 try{ saved=JSON.parse(localStorage.getItem("hme_stores")||"[]"); }catch(e){}
 if(!saved.length){ const old=localStorage.getItem("hme_store"); if(old) saved=[old]; }
 checkboxes.forEach(c=>c.checked=saved.includes(c.value));
-checkboxes.forEach(c=>c.addEventListener("change",()=>{
+laborAlerts.checked = localStorage.getItem("labor_alerts_enabled") === "true";
+
+function settingsChanged(){
   saveStoreButton.disabled=!ready || !selectedStores().length;
-  saveStoreButton.textContent="Save Locations for This Device";
-}));
+  saveStoreButton.textContent="Save Settings for This Device";
+}
+checkboxes.forEach(c=>c.addEventListener("change",settingsChanged));
+laborAlerts.addEventListener("change",settingsChanged);
 
 async function waitForSubscription(timeout=10000){
   const start=Date.now();
@@ -100,34 +142,35 @@ async function saveLocationTags(showMessage=true){
   if(!stores.length){ if(showMessage) showStatus("Select a Location","Choose at least one location.","error"); return false; }
   if(!OneSignalInstance) return false;
   const subscriptionId=await waitForSubscription();
-  if(!subscriptionId){ if(showMessage) showStatus("Enable Notifications First","Enable HME Alerts, then save your locations.","error"); return false; }
+  if(!subscriptionId){ if(showMessage) showStatus("Enable Notifications First","Enable alerts, then save your settings.","error"); return false; }
 
   saving=true;
   saveStoreButton.disabled=true;
-  saveStoreButton.textContent="Saving Locations…";
+  saveStoreButton.textContent="Saving Settings…";
   try{
-    // OneSignal Free allows only two data tags per user. Encode all 8 store choices
-    // into two 4-bit masks so multi-store selection still works on the Free plan.
+    // Keep all store choices + the labor opt-in in only two OneSignal tags.
+    // Bits 0-3 = selected stores. Bit 4 (value 16) = Labor Alerts enabled.
     OneSignalInstance.User.removeTags(OLD_TAGS);
     await new Promise(r=>setTimeout(r,700));
     const tags={
-      hme_group_a:String(maskFor(GROUP_A,stores)),
-      hme_group_b:String(maskFor(GROUP_B,stores))
+      hme_group_a:String(encodedMask(GROUP_A,stores)),
+      hme_group_b:String(encodedMask(GROUP_B,stores))
     };
     OneSignalInstance.User.addTags(tags);
     localStorage.setItem("hme_stores",JSON.stringify(stores));
+    localStorage.setItem("labor_alerts_enabled",laborAlerts.checked ? "true" : "false");
     localStorage.removeItem("hme_store");
     await new Promise(r=>setTimeout(r,1800));
 
     const current=OneSignalInstance.User.getTags ? OneSignalInstance.User.getTags() : {};
     const ok=String(current.hme_group_a)===tags.hme_group_a && String(current.hme_group_b)===tags.hme_group_b;
-    saveStoreButton.textContent=ok ? "✓ Locations Saved" : "✓ Locations Sent";
-    if(showMessage) showStatus(ok?"Locations Assigned":"Locations Sent", "This device is assigned to: "+selectedLabels()+".", "success");
+    saveStoreButton.textContent=ok ? "✓ Settings Saved" : "✓ Settings Sent";
+    if(showMessage) showStatus(ok?"Settings Saved":"Settings Sent", "Locations: "+selectedLabels()+". "+laborLabel()+".", "success");
     return true;
   }catch(err){
     console.error(err);
-    saveStoreButton.textContent="Save Locations for This Device";
-    if(showMessage) showStatus("Unable to Save Locations",err?.message||String(err),"error");
+    saveStoreButton.textContent="Save Settings for This Device";
+    if(showMessage) showStatus("Unable to Save Settings",err?.message||String(err),"error");
     return false;
   }finally{
     saving=false;
@@ -138,7 +181,7 @@ saveStoreButton.addEventListener("click",()=>saveLocationTags(true));
 
 if(isIOS() && !isStandalone()){
   enableButton.textContent="Add to Home Screen First";
-  showStatus("iPhone Setup Required","Open this page in Safari, tap Share, choose Add to Home Screen, then open HME Alerts from the Home Screen.");
+  showStatus("iPhone Setup Required","Open this page in Safari, tap Share, choose Add to Home Screen, then open Kasselmann Alerts from the Home Screen.");
 }
 
 window.OneSignalDeferred=window.OneSignalDeferred||[];
@@ -162,13 +205,13 @@ OneSignalDeferred.push(async function(OneSignal){
   function updateState(){
     const sub=OneSignal.User.PushSubscription;
     if(sub.optedIn && sub.id){
-      enableButton.textContent="✓ HME Alerts Enabled";
+      enableButton.textContent="✓ Notifications Enabled";
       enableButton.disabled=true;
-      showStatus("HME Alerts Enabled", selectedStores().length ? "Registered for: "+selectedLabels()+"." : "Select and save at least one location.", "success");
+      showStatus("Notifications Enabled", selectedStores().length ? "Registered for: "+selectedLabels()+". "+laborLabel()+"." : "Select and save at least one location.", "success");
     }else{
-      enableButton.textContent="🔔 Enable HME Alerts";
+      enableButton.textContent="🔔 Enable Notifications";
       enableButton.disabled=false;
-      showStatus("Not Enabled","Select locations, then enable notifications.");
+      showStatus("Not Enabled","Select locations, choose whether you want Labor Alerts, then enable notifications.");
     }
   }
 
