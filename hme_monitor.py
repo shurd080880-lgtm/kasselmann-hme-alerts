@@ -16,9 +16,12 @@ CHECK_INTERVAL_SECONDS = 60
 STATE_FILE = Path("hme-alert-state.json")
 LOCAL_TIME_ZONE = ZoneInfo("America/New_York")
 
-# Each phone stores all 8 location choices in only two OneSignal tags.
-# Values 0-15 are the original store masks. Values 16-31 mean the same
-# store selections with Labor Alerts enabled. HME targeting accepts both.
+# New preference encoding uses one tag per four-store group:
+# bits 0-3   = HME store selections
+# bits 4-7   = Labor store selections
+# bit 8/256  = v2 marker
+# HME targeting only checks the low store bits, so HME and Labor choices are independent.
+# Legacy values 0-31 are still supported for HME until a device saves the new settings page.
 STORE_TARGETS = {
     "Pendleton-Kasselmann": ("hme_group_a", 1),
     "Eminence - Kasselmann": ("hme_group_a", 2),
@@ -101,8 +104,9 @@ def fetch_readings():
 
 
 def build_store_filters(tag_key, bit):
-    # 0-15 = HME only, 16-31 = same store mask + Labor Alerts enabled.
-    matching_values = [str(mask) for mask in range(32) if mask & bit]
+    # Legacy tags use 0-31. New v2 tags use 256-511.
+    # HME selection stays in bits 0-3, so just test the store bit across both ranges.
+    matching_values = [str(mask) for mask in list(range(32)) + list(range(256, 512)) if mask & bit]
     filters = []
     for index, value in enumerate(matching_values):
         if index:
