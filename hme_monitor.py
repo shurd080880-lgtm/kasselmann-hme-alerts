@@ -15,6 +15,7 @@ REQUIRED_SECONDS = 5 * 60
 CHECK_INTERVAL_SECONDS = 60
 STATE_FILE = Path("hme-alert-state.json")
 LOCAL_TIME_ZONE = ZoneInfo("America/New_York")
+MAX_FILTER_VALUES_PER_REQUEST = 100
 
 # New preference encoding uses one tag per four-store group:
 # bits 0-3   = HME store selections
@@ -103,16 +104,28 @@ def fetch_readings():
     return readings
 
 
-def build_store_filters(tag_key, bit):
-    # Legacy tags use 0-31. New v2 tags use 256-511.
-    # HME selection stays in bits 0-3, so just test the store bit across both ranges.
-    matching_values = [str(mask) for mask in list(range(32)) + list(range(256, 512)) if mask & bit]
+def build_filters_for_values(tag_key, values):
     filters = []
-    for index, value in enumerate(matching_values):
+    for index, value in enumerate(values):
         if index:
             filters.append({"operator": "OR"})
         filters.append({"field": "tag", "key": tag_key, "relation": "=", "value": value})
     return filters
+
+
+def build_store_filter_batches(tag_key, bit):
+    # Each OneSignal request must stay below the total filter-entry limit.
+    # 100 tag values become 199 entries after the OR operators are included.
+    matching_values = [
+        str(mask)
+        for mask in list(range(32)) + list(range(256, 512))
+        if mask & bit
+    ]
+    batches = []
+    for start in range(0, len(matching_values), MAX_FILTER_VALUES_PER_REQUEST):
+        values = matching_values[start:start + MAX_FILTER_VALUES_PER_REQUEST]
+        batches.append(build_filters_for_values(tag_key, values))
+    return batches
 
 
 def log_alert_to_google_sheet(store_name, average, notification_id):
@@ -158,39 +171,60 @@ def send_push(store_name, average):
         return False
 
     tag_key, bit = target
-    body = {
-        "app_id": APP_ID,
-        "target_channel": "push",
-        "filters": build_store_filters(tag_key, bit),
-        "headings": {"en": f"🚨 {store_name} HME Alert"},
-        "contents": {
-            "en": f"{store_name} has remained at or above {THRESHOLD} seconds for 5 minutes. Current Hour Average: {round(average)} seconds."
-        },
-        "ios_sound": "default",
-        "android_sound": "default",
-        "name": f"HME threshold alert - {store_name}",
-        "url": "https://shurd080880-lgtm.github.io/kasselmann-hme-alerts/",
-        "idempotency_key": str(uuid.uuid4()),
-    }
+    filter_batches = build_store_filter_batches(tag_key, bit)
+    notification_ids = []
+    all_succeeded = True
 
-    result = http_json(
-        ONESIGNAL_URL,
-        headers={
-            "Authorization": f"Key {api_key}",
-            "Content-Type": "application/json",
-        },
-        method="POST",
-        body=body,
-    )
-    print(f"OneSignal response for {store_name} using {tag_key} bit {bit}: {result}", flush=True)
-    errors = result.get("errors") if isinstance(result, dict) else None
-    notification_id = result.get("id") if isinstance(result, dict) else None
-    success = bool(notification_id) and not errors
-    if success:
-        log_alert_to_google_sheet(store_name, average, notification_id)
-    else:
-        print(f"Alert delivery failed for {store_name}; keeping it eligible for retry.", flush=True)
-    return success
+    for batch_number, filters in enumerate(filter_batches, start=1):
+        body = {
+            "app_id": APP_ID,
+            "target_channel": "push",
+            "filters": filters,
+            "headings": {"en": f"🚨 {store_name} HME Alert"},
+            "contents": {
+                "en": f"{store_name} has remained at or above {THRESHOLD} seconds for 5 minutes. Current Hour Average: {round(average)} seconds."
+            },
+            "ios_sound": "default",
+            "android_sound": "default",
+            "name": f"HME threshold alert - {store_name} - batch {batch_number}/{len(filter_batches)}",
+            "url": "https://shurd080880-lgtm.github.io/kasselmann-hme-alerts/",
+            "idempotency_key": str(uuid.uuid4()),
+        }
+
+        result = http_json(
+            ONESIGNAL_URL,
+            headers={
+                "Authorization": f"Key {api_key}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+            body=body,
+        )
+        print(
+            f"OneSignal response for {store_name} using {tag_key} bit {bit}, "
+            f"batch {batch_number}/{len(filter_batches)} with {len(filters)} filter entries: {result}",
+            flush=True,
+        )
+
+        errors = result.get("errors") if isinstance(result, dict) else None
+        notification_id = result.get("id") if isinstance(result, dict) else None
+        batch_succeeded = bool(notification_id) and not errors
+
+        if batch_succeeded:
+            notification_ids.append(str(notification_id))
+        else:
+            all_succeeded = False
+            print(
+                f"Alert delivery failed for {store_name} batch {batch_number}; "
+                "keeping the store eligible for retry.",
+                flush=True,
+            )
+
+    if all_succeeded and notification_ids:
+        log_alert_to_google_sheet(store_name, average, ",".join(notification_ids))
+        return True
+
+    return False
 
 
 def process_readings(state, readings, now):
