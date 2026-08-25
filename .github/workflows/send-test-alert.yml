@@ -1,53 +1,130 @@
 name: Send OneSignal Test Alert
 
 on:
-  push:
-    paths:
-      - ".github/workflows/send-test-alert.yml"
   workflow_dispatch:
+    inputs:
+      store:
+        description: "Store to test"
+        required: true
+        type: choice
+        default: Buckner-Kasselmann
+        options:
+          - Pendleton-Kasselmann
+          - Eminence - Kasselmann
+          - LaGrange -Kasselmann
+          - Hanover- Kasselmann
+          - Madison- Kasselmann
+          - Clarksville-Kasselmann
+          - Buckner-Kasselmann
+          - Veterans-Kasselmann
 
 jobs:
   send-test:
     runs-on: ubuntu-latest
     steps:
-      - name: Send Buckner targeted test push notification
+      - name: Send selected store test push notification
         env:
           ONESIGNAL_API_KEY: ${{ secrets.ONESIGNAL_API_KEY }}
+          SELECTED_STORE: ${{ inputs.store }}
         run: |
           python - <<'PY'
-          import json, os, urllib.request
+          import json
+          import os
+          import urllib.request
+          import uuid
 
-          app_id = "48b2684c-c9e3-466c-afe5-24779f7b2096"
-          api_key = os.environ["ONESIGNAL_API_KEY"]
-          # Same compact tag and bit-mask targeting used by the production HME monitor.
-          # Buckner is bit 4 in hme_group_b.
-          buckner_values = [str(v) for v in range(16) if v & 4]
-          filters = []
-          for i, value in enumerate(buckner_values):
-              if i:
-                  filters.append({"operator": "OR"})
-              filters.append({"field": "tag", "key": "hme_group_b", "relation": "=", "value": value})
+          APP_ID = "48b2684c-c9e3-466c-afe5-24779f7b2096"
+          ONESIGNAL_URL = "https://api.onesignal.com/notifications?c=push"
+          MAX_FILTER_VALUES_PER_REQUEST = 100
 
-          payload = {
-              "app_id": app_id,
-              "target_channel": "push",
-              "filters": filters,
-              "headings": {"en": "🚨 Buckner-Kasselmann HME Alert"},
-              "contents": {"en": "TEST: Buckner-Kasselmann has remained at or above 250 seconds for 5 minutes. Current Hour Average: 287 seconds."},
-              "ios_sound": "default",
-              "android_sound": "default",
-              "name": "Buckner store-targeted test",
-              "url": "https://shurd080880-lgtm.github.io/kasselmann-hme-alerts/"
+          STORE_TARGETS = {
+              "Pendleton-Kasselmann": ("hme_group_a", 1),
+              "Eminence - Kasselmann": ("hme_group_a", 2),
+              "LaGrange -Kasselmann": ("hme_group_a", 4),
+              "Hanover- Kasselmann": ("hme_group_a", 8),
+              "Madison- Kasselmann": ("hme_group_b", 1),
+              "Clarksville-Kasselmann": ("hme_group_b", 2),
+              "Buckner-Kasselmann": ("hme_group_b", 4),
+              "Veterans-Kasselmann": ("hme_group_b", 8),
           }
-          req = urllib.request.Request(
-              "https://api.onesignal.com/notifications?c=push",
-              data=json.dumps(payload).encode("utf-8"),
-              headers={
-                  "Authorization": f"Key {api_key}",
-                  "Content-Type": "application/json",
-              },
-              method="POST",
+
+          def build_filters(tag_key, values):
+              filters = []
+              for index, value in enumerate(values):
+                  if index:
+                      filters.append({"operator": "OR"})
+                  filters.append({
+                      "field": "tag",
+                      "key": tag_key,
+                      "relation": "=",
+                      "value": value,
+                  })
+              return filters
+
+          store = os.environ["SELECTED_STORE"]
+          api_key = os.environ["ONESIGNAL_API_KEY"]
+          tag_key, bit = STORE_TARGETS[store]
+
+          matching_values = [
+              str(mask)
+              for mask in list(range(32)) + list(range(256, 512))
+              if mask & bit
+          ]
+
+          batches = [
+              matching_values[i:i + MAX_FILTER_VALUES_PER_REQUEST]
+              for i in range(0, len(matching_values), MAX_FILTER_VALUES_PER_REQUEST)
+          ]
+
+          notification_ids = []
+          for batch_number, values in enumerate(batches, start=1):
+              filters = build_filters(tag_key, values)
+              payload = {
+                  "app_id": APP_ID,
+                  "target_channel": "push",
+                  "filters": filters,
+                  "headings": {"en": f"🧪 TEST - {store} HME Alert"},
+                  "contents": {
+                      "en": f"TEST ONLY: {store} HME notifications are working. Production rule remains 250 seconds for 5 minutes."
+                  },
+                  "ios_sound": "default",
+                  "android_sound": "default",
+                  "name": f"HME test alert - {store} - batch {batch_number}/{len(batches)}",
+                  "url": "https://shurd080880-lgtm.github.io/kasselmann-hme-alerts/",
+                  "idempotency_key": str(uuid.uuid4()),
+              }
+
+              req = urllib.request.Request(
+                  ONESIGNAL_URL,
+                  data=json.dumps(payload).encode("utf-8"),
+                  headers={
+                      "Authorization": f"Key {api_key}",
+                      "Content-Type": "application/json",
+                  },
+                  method="POST",
+              )
+
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  result = json.loads(response.read().decode("utf-8"))
+
+              errors = result.get("errors") if isinstance(result, dict) else None
+              notification_id = result.get("id") if isinstance(result, dict) else None
+              print(
+                  f"{store} batch {batch_number}/{len(batches)}: "
+                  f"{len(filters)} filter entries; response={result}",
+                  flush=True,
+              )
+
+              if errors or not notification_id:
+                  raise RuntimeError(
+                      f"OneSignal test failed for {store}, batch {batch_number}: {result}"
+                  )
+
+              notification_ids.append(str(notification_id))
+
+          print(
+              f"SUCCESS: test alert accepted for {store}. "
+              f"Notification IDs: {','.join(notification_ids)}",
+              flush=True,
           )
-          with urllib.request.urlopen(req, timeout=30) as r:
-              print(r.read().decode("utf-8"))
           PY
