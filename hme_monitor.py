@@ -15,6 +15,8 @@ REQUIRED_SECONDS = 5 * 60
 CHECK_INTERVAL_SECONDS = 60
 STATE_FILE = Path("hme-alert-state.json")
 LOCAL_TIME_ZONE = ZoneInfo("America/New_York")
+MONITOR_START_HOUR = 7
+MONITOR_STOP_HOUR = 21
 MAX_FILTER_VALUES_PER_REQUEST = 100
 
 # New preference encoding uses one tag per four-store group:
@@ -58,6 +60,16 @@ def load_state():
 
 def save_state(state):
     STATE_FILE.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def reset_alert_state(state):
+    state["alerted"] = {}
+    state["above_since"] = {}
+
+
+def monitoring_active():
+    local_hour = datetime.now(LOCAL_TIME_ZONE).hour
+    return MONITOR_START_HOUR <= local_hour < MONITOR_STOP_HOUR
 
 
 def walk_dicts(value):
@@ -114,8 +126,6 @@ def build_filters_for_values(tag_key, values):
 
 
 def build_store_filter_batches(tag_key, bit):
-    # Each OneSignal request must stay below the total filter-entry limit.
-    # 100 tag values become 199 entries after the OR operators are included.
     matching_values = [
         str(mask)
         for mask in list(range(32)) + list(range(256, 512))
@@ -215,8 +225,7 @@ def send_push(store_name, average):
         else:
             all_succeeded = False
             print(
-                f"Alert delivery failed for {store_name} batch {batch_number}; "
-                "keeping the store eligible for retry.",
+                f"Alert delivery failed for {store_name} batch {batch_number}; keeping the store eligible for retry.",
                 flush=True,
             )
 
@@ -259,9 +268,18 @@ def process_readings(state, readings, now):
 def main():
     state = load_state()
     print("Kasselmann HME monitor started in continuous mode.", flush=True)
+    print("HME notification hours: 7:00 AM-9:00 PM Eastern.", flush=True)
 
     while True:
         try:
+            if not monitoring_active():
+                if state.get("alerted") or state.get("above_since"):
+                    reset_alert_state(state)
+                    save_state(state)
+                    print("HME monitoring is OFF. Timers reset until 7:00 AM Eastern.", flush=True)
+                time.sleep(CHECK_INTERVAL_SECONDS)
+                continue
+
             now = time.time()
             readings = fetch_readings()
             print(f"HME readings: {readings}", flush=True)
