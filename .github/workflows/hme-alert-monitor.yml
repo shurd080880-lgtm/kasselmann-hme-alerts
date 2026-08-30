@@ -1,10 +1,19 @@
-name: HME Alert Monitor (Manual Backup)
+name: HME Alert Monitor
 
 on:
   workflow_dispatch:
+  schedule:
+    # Covers 7:00 AM-9:00 PM Eastern in both EDT and EST.
+    # hme_monitor.py also enforces the exact local-time window.
+    - cron: "*/10 11-23 * * *"
+    - cron: "*/10 0-2 * * *"
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: hme-alert-monitor
+  cancel-in-progress: false
 
 jobs:
   monitor:
@@ -20,7 +29,30 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Run manual backup monitor
+      - name: Monitor HME and send alerts
         env:
           ONESIGNAL_API_KEY: ${{ secrets.ONESIGNAL_API_KEY }}
+          GOOGLE_SHEET_WEBHOOK_URL: ${{ secrets.GOOGLE_SHEET_WEBHOOK_URL }}
+          GOOGLE_SHEET_WEBHOOK_SECRET: ${{ secrets.GOOGLE_SHEET_WEBHOOK_SECRET }}
         run: timeout 10m python hme_monitor.py || test $? -eq 124
+
+      - name: Save alert state
+        if: always()
+        run: |
+          if [ ! -f hme-alert-state.json ]; then
+            echo "No HME state file to save."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f hme-alert-state.json
+
+          if git diff --cached --quiet; then
+            echo "No HME state change to save."
+            exit 0
+          fi
+
+          git commit -m "Update HME alert state"
+          git pull --rebase origin main
+          git push origin main
