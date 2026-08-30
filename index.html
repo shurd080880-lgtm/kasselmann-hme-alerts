@@ -51,6 +51,7 @@ const GROUP_A=["pendleton","eminence","lagrange","hanover"];
 const GROUP_B=["madison","clarksville","buckner","veterans"];
 const V2_MARKER=256;
 const OLD_TAGS=Object.keys(STORES).map(code=>"hme_store_"+code);
+const DIRECT_HME_TAGS=Object.keys(STORES).map(code=>"hme_target_"+code);
 
 const hmeList=document.getElementById("hmeStoreList");
 const laborList=document.getElementById("laborStoreList");
@@ -99,14 +100,16 @@ async function saveTags(showMessage=true){
   if(!subscriptionId){if(showMessage)showStatus("Enable Notifications First","Enable notifications, then save your alert locations.","error");return false}
   saving=true;saveButton.disabled=true;saveButton.textContent="Saving…";
   try{
-    OneSignalInstance.User.removeTags(OLD_TAGS); await new Promise(r=>setTimeout(r,500));
+    OneSignalInstance.User.removeTags([...OLD_TAGS,...DIRECT_HME_TAGS]); await new Promise(r=>setTimeout(r,500));
     const tags={hme_group_a:String(encoded(GROUP_A,hme,labor)),hme_group_b:String(encoded(GROUP_B,hme,labor))};
+    hme.forEach(code=>{tags["hme_target_"+code]="1"});
     OneSignalInstance.User.addTags(tags);
     localStorage.setItem("hme_stores_v2",JSON.stringify(hme)); localStorage.setItem("labor_stores_v2",JSON.stringify(labor));
     localStorage.setItem("hme_stores",JSON.stringify(hme)); localStorage.setItem("labor_alerts_enabled",labor.length?"true":"false"); localStorage.removeItem("hme_store");
     await new Promise(r=>setTimeout(r,1800));
     const current=OneSignalInstance.User.getTags?OneSignalInstance.User.getTags():{};
-    const ok=String(current.hme_group_a)===tags.hme_group_a&&String(current.hme_group_b)===tags.hme_group_b;
+    const directOk=hme.every(code=>String(current["hme_target_"+code])==="1");
+    const ok=String(current.hme_group_a)===tags.hme_group_a&&String(current.hme_group_b)===tags.hme_group_b&&directOk;
     saveButton.textContent=ok?"✓ Alert Locations Saved":"✓ Settings Sent";
     if(showMessage)showStatus(ok?"Alert Locations Saved":"Settings Sent","HME: "+labels(hme)+". Labor: "+labels(labor)+".","success");
     return true;
