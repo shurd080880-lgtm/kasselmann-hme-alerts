@@ -17,23 +17,19 @@ STATE_FILE = Path("hme-alert-state.json")
 LOCAL_TIME_ZONE = ZoneInfo("America/New_York")
 MONITOR_START_HOUR = 7
 MONITOR_STOP_HOUR = 21
-MAX_FILTER_VALUES_PER_REQUEST = 100
 
-# New preference encoding uses one tag per four-store group:
-# bits 0-3   = HME store selections
-# bits 4-7   = Labor store selections
-# bit 8/256  = v2 marker
-# HME targeting only checks the low store bits, so HME and Labor choices are independent.
-# Legacy values 0-31 are still supported for HME until a device saves the new settings page.
+# Each HME store now has its own direct OneSignal tag.
+# This lets one qualifying store event create one OneSignal notification request,
+# eliminating duplicate delivery caused by splitting mask-based targeting across batches.
 STORE_TARGETS = {
-    "Pendleton-Kasselmann": ("hme_group_a", 1),
-    "Eminence - Kasselmann": ("hme_group_a", 2),
-    "LaGrange -Kasselmann": ("hme_group_a", 4),
-    "Hanover- Kasselmann": ("hme_group_a", 8),
-    "Madison- Kasselmann": ("hme_group_b", 1),
-    "Clarksville-Kasselmann": ("hme_group_b", 2),
-    "Buckner-Kasselmann": ("hme_group_b", 4),
-    "Veterans-Kasselmann": ("hme_group_b", 8),
+    "Pendleton-Kasselmann": "hme_target_pendleton",
+    "Eminence - Kasselmann": "hme_target_eminence",
+    "LaGrange -Kasselmann": "hme_target_lagrange",
+    "Hanover- Kasselmann": "hme_target_hanover",
+    "Madison- Kasselmann": "hme_target_madison",
+    "Clarksville-Kasselmann": "hme_target_clarksville",
+    "Buckner-Kasselmann": "hme_target_buckner",
+    "Veterans-Kasselmann": "hme_target_veterans",
 }
 
 
@@ -116,28 +112,6 @@ def fetch_readings():
     return readings
 
 
-def build_filters_for_values(tag_key, values):
-    filters = []
-    for index, value in enumerate(values):
-        if index:
-            filters.append({"operator": "OR"})
-        filters.append({"field": "tag", "key": tag_key, "relation": "=", "value": value})
-    return filters
-
-
-def build_store_filter_batches(tag_key, bit):
-    matching_values = [
-        str(mask)
-        for mask in list(range(32)) + list(range(256, 512))
-        if mask & bit
-    ]
-    batches = []
-    for start in range(0, len(matching_values), MAX_FILTER_VALUES_PER_REQUEST):
-        values = matching_values[start:start + MAX_FILTER_VALUES_PER_REQUEST]
-        batches.append(build_filters_for_values(tag_key, values))
-    return batches
-
-
 def log_alert_to_google_sheet(store_name, average, notification_id):
     webhook_url = os.environ.get("GOOGLE_SHEET_WEBHOOK_URL", "").strip()
     webhook_secret = os.environ.get("GOOGLE_SHEET_WEBHOOK_SECRET", "").strip()
@@ -175,64 +149,54 @@ def send_push(store_name, average):
     if not api_key:
         raise RuntimeError("Missing ONESIGNAL_API_KEY environment variable")
 
-    target = STORE_TARGETS.get(store_name)
-    if not target:
+    tag_key = STORE_TARGETS.get(store_name)
+    if not tag_key:
         print(f"No OneSignal target mapping for {store_name}; alert not sent.", flush=True)
         return False
 
-    tag_key, bit = target
-    filter_batches = build_store_filter_batches(tag_key, bit)
-    notification_ids = []
-    all_succeeded = True
+    body = {
+        "app_id": APP_ID,
+        "target_channel": "push",
+        "filters": [
+            {"field": "tag", "key": tag_key, "relation": "=", "value": "1"}
+        ],
+        "headings": {"en": f"🚨 {store_name} HME Alert"},
+        "contents": {
+            "en": f"{store_name} has remained at or above {THRESHOLD} seconds for 5 minutes. Current Hour Average: {round(average)} seconds."
+        },
+        "ios_sound": "default",
+        "android_sound": "default",
+        "name": f"HME threshold alert - {store_name}",
+        "url": "https://shurd080880-lgtm.github.io/kasselmann-hme-alerts/",
+        "idempotency_key": str(uuid.uuid4()),
+    }
 
-    for batch_number, filters in enumerate(filter_batches, start=1):
-        body = {
-            "app_id": APP_ID,
-            "target_channel": "push",
-            "filters": filters,
-            "headings": {"en": f"🚨 {store_name} HME Alert"},
-            "contents": {
-                "en": f"{store_name} has remained at or above {THRESHOLD} seconds for 5 minutes. Current Hour Average: {round(average)} seconds."
-            },
-            "ios_sound": "default",
-            "android_sound": "default",
-            "name": f"HME threshold alert - {store_name} - batch {batch_number}/{len(filter_batches)}",
-            "url": "https://shurd080880-lgtm.github.io/kasselmann-hme-alerts/",
-            "idempotency_key": str(uuid.uuid4()),
-        }
+    result = http_json(
+        ONESIGNAL_URL,
+        headers={
+            "Authorization": f"Key {api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+        body=body,
+    )
+    print(
+        f"OneSignal response for {store_name} using direct tag {tag_key}: {result}",
+        flush=True,
+    )
 
-        result = http_json(
-            ONESIGNAL_URL,
-            headers={
-                "Authorization": f"Key {api_key}",
-                "Content-Type": "application/json",
-            },
-            method="POST",
-            body=body,
-        )
-        print(
-            f"OneSignal response for {store_name} using {tag_key} bit {bit}, "
-            f"batch {batch_number}/{len(filter_batches)} with {len(filters)} filter entries: {result}",
-            flush=True,
-        )
+    errors = result.get("errors") if isinstance(result, dict) else None
+    notification_id = result.get("id") if isinstance(result, dict) else None
+    succeeded = bool(notification_id) and not errors
 
-        errors = result.get("errors") if isinstance(result, dict) else None
-        notification_id = result.get("id") if isinstance(result, dict) else None
-        batch_succeeded = bool(notification_id) and not errors
-
-        if batch_succeeded:
-            notification_ids.append(str(notification_id))
-        else:
-            all_succeeded = False
-            print(
-                f"Alert delivery failed for {store_name} batch {batch_number}; keeping the store eligible for retry.",
-                flush=True,
-            )
-
-    if all_succeeded and notification_ids:
-        log_alert_to_google_sheet(store_name, average, ",".join(notification_ids))
+    if succeeded:
+        log_alert_to_google_sheet(store_name, average, str(notification_id))
         return True
 
+    print(
+        f"Alert delivery failed for {store_name}; keeping the store eligible for retry.",
+        flush=True,
+    )
     return False
 
 
