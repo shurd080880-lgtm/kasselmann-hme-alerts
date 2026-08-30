@@ -21,8 +21,13 @@ jobs:
     timeout-minutes: 12
 
     steps:
-      - name: Check out repository
+      - name: Check out latest main
         uses: actions/checkout@v6
+        with:
+          # Scheduled runs can be queued with an older event SHA. Always start
+          # from the latest main so the previous run's state is included.
+          ref: main
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -54,5 +59,4 @@ jobs:
           fi
 
           git commit -m "Update HME alert state"
-          git pull --rebase origin main
-          git push origin main
+          git push origin HEAD:main
