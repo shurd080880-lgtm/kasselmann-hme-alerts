@@ -1,8 +1,9 @@
 {
   "above_since": {
-    "Buckner-Kasselmann": 1788098460.1317291
+    "Buckner-Kasselmann": 1788098460.1317291,
+    "Veterans-Kasselmann": 1788099126.180306
   },
   "alerted": {
-    "Buckner-Kasselmann": false
+    "Buckner-Kasselmann": true
   }
 }
