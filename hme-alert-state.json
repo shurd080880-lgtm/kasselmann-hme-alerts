@@ -1,9 +1,7 @@
 {
-  "above_since": {
-    "LaGrange -Kasselmann": 1788192105.9018557
-  },
+  "above_since": {},
   "alerted": {
     "Buckner-Kasselmann": false,
-    "LaGrange -Kasselmann": true
+    "LaGrange -Kasselmann": false
   }
 }
