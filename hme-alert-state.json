@@ -1,9 +1,7 @@
 {
-  "above_since": {
-    "Clarksville-Kasselmann": 1788272186.497197
-  },
+  "above_since": {},
   "alerted": {
-    "Clarksville-Kasselmann": true,
+    "Clarksville-Kasselmann": false,
     "Hanover- Kasselmann": false
   }
 }
