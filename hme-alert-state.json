@@ -1,6 +1,6 @@
 {
-  "above_since": {
-    "Buckner-Kasselmann": 1788436455.7714934
-  },
-  "alerted": {}
+  "above_since": {},
+  "alerted": {
+    "Buckner-Kasselmann": false
+  }
 }
