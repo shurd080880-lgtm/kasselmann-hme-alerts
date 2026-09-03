@@ -1,11 +1,9 @@
 {
-  "above_since": {
-    "LaGrange -Kasselmann": 1788462232.1935358
-  },
+  "above_since": {},
   "alerted": {
     "Buckner-Kasselmann": false,
     "Hanover- Kasselmann": false,
-    "LaGrange -Kasselmann": true,
+    "LaGrange -Kasselmann": false,
     "Veterans-Kasselmann": false
   }
 }
