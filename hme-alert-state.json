@@ -5,7 +5,7 @@
   },
   "alerted": {
     "Buckner-Kasselmann": false,
-    "Clarksville-Kasselmann": false,
+    "Clarksville-Kasselmann": true,
     "Eminence - Kasselmann": false,
     "Veterans-Kasselmann": true
   }
