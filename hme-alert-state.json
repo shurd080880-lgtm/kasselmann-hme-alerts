@@ -1,7 +1,8 @@
 {
   "above_since": {
-    "Clarksville-Kasselmann": 1788786048.8618724,
     "Eminence - Kasselmann": 1788786048.8618724
   },
-  "alerted": {}
+  "alerted": {
+    "Eminence - Kasselmann": false
+  }
 }
