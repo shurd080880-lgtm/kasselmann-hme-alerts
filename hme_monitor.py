@@ -17,10 +17,9 @@ STATE_FILE = Path("hme-alert-state.json")
 LOCAL_TIME_ZONE = ZoneInfo("America/New_York")
 MONITOR_START_HOUR = 7
 MONITOR_STOP_HOUR = 21
+MAX_FILTER_VALUES_PER_REQUEST = 100
 
-# Each HME store now has its own direct OneSignal tag.
-# This lets one qualifying store event create one OneSignal notification request,
-# eliminating duplicate delivery caused by splitting mask-based targeting across batches.
+# Preferred targeting: one direct OneSignal tag per HME store.
 STORE_TARGETS = {
     "Pendleton-Kasselmann": "hme_target_pendleton",
     "Eminence - Kasselmann": "hme_target_eminence",
@@ -30,6 +29,20 @@ STORE_TARGETS = {
     "Clarksville-Kasselmann": "hme_target_clarksville",
     "Buckner-Kasselmann": "hme_target_buckner",
     "Veterans-Kasselmann": "hme_target_veterans",
+}
+
+# Compatibility targeting for devices that have not yet picked up the new direct tags.
+# These are used ONLY when the direct-tag request reports that nobody is subscribed,
+# which avoids duplicate delivery to devices that have already migrated.
+LEGACY_TARGETS = {
+    "Pendleton-Kasselmann": ("hme_group_a", 1),
+    "Eminence - Kasselmann": ("hme_group_a", 2),
+    "LaGrange -Kasselmann": ("hme_group_a", 4),
+    "Hanover- Kasselmann": ("hme_group_a", 8),
+    "Madison- Kasselmann": ("hme_group_b", 1),
+    "Clarksville-Kasselmann": ("hme_group_b", 2),
+    "Buckner-Kasselmann": ("hme_group_b", 4),
+    "Veterans-Kasselmann": ("hme_group_b", 8),
 }
 
 
@@ -112,6 +125,28 @@ def fetch_readings():
     return readings
 
 
+def build_filters_for_values(tag_key, values):
+    filters = []
+    for index, value in enumerate(values):
+        if index:
+            filters.append({"operator": "OR"})
+        filters.append({"field": "tag", "key": tag_key, "relation": "=", "value": value})
+    return filters
+
+
+def build_legacy_filter_batches(tag_key, bit):
+    matching_values = [
+        str(mask)
+        for mask in list(range(32)) + list(range(256, 512))
+        if mask & bit
+    ]
+    batches = []
+    for start in range(0, len(matching_values), MAX_FILTER_VALUES_PER_REQUEST):
+        values = matching_values[start:start + MAX_FILTER_VALUES_PER_REQUEST]
+        batches.append(build_filters_for_values(tag_key, values))
+    return batches
+
+
 def log_alert_to_google_sheet(store_name, average, notification_id):
     webhook_url = os.environ.get("GOOGLE_SHEET_WEBHOOK_URL", "").strip()
     webhook_secret = os.environ.get("GOOGLE_SHEET_WEBHOOK_SECRET", "").strip()
@@ -144,6 +179,42 @@ def log_alert_to_google_sheet(store_name, average, notification_id):
         print(f"Google Sheet logging failed for {store_name}: {error}", flush=True)
 
 
+def make_notification_body(store_name, average, filters, name):
+    return {
+        "app_id": APP_ID,
+        "target_channel": "push",
+        "filters": filters,
+        "headings": {"en": f"🚨 {store_name} HME Alert"},
+        "contents": {
+            "en": f"{store_name} has remained at or above {THRESHOLD} seconds for 5 minutes. Current Hour Average: {round(average)} seconds."
+        },
+        "ios_sound": "default",
+        "android_sound": "default",
+        "name": name,
+        "url": "https://shurd080880-lgtm.github.io/kasselmann-hme-alerts/",
+        "idempotency_key": str(uuid.uuid4()),
+    }
+
+
+def send_onesignal(api_key, body):
+    return http_json(
+        ONESIGNAL_URL,
+        headers={
+            "Authorization": f"Key {api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+        body=body,
+    )
+
+
+def no_subscribed_players(result):
+    if not isinstance(result, dict):
+        return False
+    errors = result.get("errors") or []
+    return any("All included players are not subscribed" in str(error) for error in errors)
+
+
 def send_push(store_name, average):
     api_key = os.environ.get("ONESIGNAL_API_KEY", "").strip()
     if not api_key:
@@ -154,43 +225,89 @@ def send_push(store_name, average):
         print(f"No OneSignal target mapping for {store_name}; alert not sent.", flush=True)
         return False
 
-    body = {
-        "app_id": APP_ID,
-        "target_channel": "push",
-        "filters": [
-            {"field": "tag", "key": tag_key, "relation": "=", "value": "1"}
-        ],
-        "headings": {"en": f"🚨 {store_name} HME Alert"},
-        "contents": {
-            "en": f"{store_name} has remained at or above {THRESHOLD} seconds for 5 minutes. Current Hour Average: {round(average)} seconds."
-        },
-        "ios_sound": "default",
-        "android_sound": "default",
-        "name": f"HME threshold alert - {store_name}",
-        "url": "https://shurd080880-lgtm.github.io/kasselmann-hme-alerts/",
-        "idempotency_key": str(uuid.uuid4()),
-    }
-
-    result = http_json(
-        ONESIGNAL_URL,
-        headers={
-            "Authorization": f"Key {api_key}",
-            "Content-Type": "application/json",
-        },
-        method="POST",
-        body=body,
+    direct_filters = [
+        {"field": "tag", "key": tag_key, "relation": "=", "value": "1"}
+    ]
+    direct_body = make_notification_body(
+        store_name,
+        average,
+        direct_filters,
+        f"HME threshold alert - {store_name}",
     )
+    direct_result = send_onesignal(api_key, direct_body)
     print(
-        f"OneSignal response for {store_name} using direct tag {tag_key}: {result}",
+        f"OneSignal response for {store_name} using direct tag {tag_key}: {direct_result}",
         flush=True,
     )
 
-    errors = result.get("errors") if isinstance(result, dict) else None
-    notification_id = result.get("id") if isinstance(result, dict) else None
-    succeeded = bool(notification_id) and not errors
+    direct_errors = direct_result.get("errors") if isinstance(direct_result, dict) else None
+    direct_notification_id = direct_result.get("id") if isinstance(direct_result, dict) else None
+    direct_succeeded = bool(direct_notification_id) and not direct_errors
 
-    if succeeded:
-        log_alert_to_google_sheet(store_name, average, str(notification_id))
+    if direct_succeeded:
+        log_alert_to_google_sheet(store_name, average, str(direct_notification_id))
+        return True
+
+    if not no_subscribed_players(direct_result):
+        print(
+            f"Direct-tag alert delivery failed for {store_name}; keeping the store eligible for retry.",
+            flush=True,
+        )
+        return False
+
+    # Nobody currently has the direct tag for this store. Fall back to the older
+    # group-mask tags so existing devices keep receiving alerts until they migrate.
+    legacy_target = LEGACY_TARGETS.get(store_name)
+    if not legacy_target:
+        print(f"No legacy OneSignal fallback mapping for {store_name}.", flush=True)
+        return False
+
+    legacy_tag_key, bit = legacy_target
+    filter_batches = build_legacy_filter_batches(legacy_tag_key, bit)
+    notification_ids = []
+    all_succeeded = True
+
+    print(
+        f"No subscribed direct-tag devices for {store_name}; trying legacy {legacy_tag_key} fallback.",
+        flush=True,
+    )
+
+    for batch_number, filters in enumerate(filter_batches, start=1):
+        fallback_body = make_notification_body(
+            store_name,
+            average,
+            filters,
+            f"HME threshold alert fallback - {store_name} - batch {batch_number}/{len(filter_batches)}",
+        )
+        result = send_onesignal(api_key, fallback_body)
+        print(
+            f"OneSignal fallback response for {store_name} using {legacy_tag_key} bit {bit}, "
+            f"batch {batch_number}/{len(filter_batches)}: {result}",
+            flush=True,
+        )
+
+        errors = result.get("errors") if isinstance(result, dict) else None
+        notification_id = result.get("id") if isinstance(result, dict) else None
+        batch_succeeded = bool(notification_id) and not errors
+
+        if batch_succeeded:
+            notification_ids.append(str(notification_id))
+        elif no_subscribed_players(result):
+            # An empty compatibility batch is not a delivery-system failure; another
+            # batch may still contain the device's current mask value.
+            print(
+                f"Legacy fallback batch {batch_number} had no subscribed recipients.",
+                flush=True,
+            )
+        else:
+            all_succeeded = False
+            print(
+                f"Legacy fallback delivery failed for {store_name} batch {batch_number}.",
+                flush=True,
+            )
+
+    if all_succeeded and notification_ids:
+        log_alert_to_google_sheet(store_name, average, ",".join(notification_ids))
         return True
 
     print(
