@@ -1,9 +1,11 @@
 {
   "above_since": {
-    "Clarksville-Kasselmann": 1788987158.8319929
+    "Clarksville-Kasselmann": 1788987158.8319929,
+    "Hanover- Kasselmann": 1788988386.1566327
   },
   "alerted": {
     "Clarksville-Kasselmann": true,
+    "Hanover- Kasselmann": true,
     "Veterans-Kasselmann": false
   }
 }
