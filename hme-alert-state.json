@@ -4,6 +4,8 @@
     "Veterans-Kasselmann": 1789153362.9170456
   },
   "alerted": {
-    "Clarksville-Kasselmann": false
+    "Clarksville-Kasselmann": false,
+    "Madison- Kasselmann": true,
+    "Veterans-Kasselmann": true
   }
 }
