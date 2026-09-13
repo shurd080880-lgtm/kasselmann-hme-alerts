@@ -4,7 +4,8 @@
     "Veterans-Kasselmann": 1789308124.4459684
   },
   "alerted": {
-    "Clarksville-Kasselmann": false,
-    "Hanover- Kasselmann": false
+    "Clarksville-Kasselmann": true,
+    "Hanover- Kasselmann": false,
+    "Veterans-Kasselmann": true
   }
 }
