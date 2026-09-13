@@ -1,11 +1,4 @@
 {
   "above_since": {},
-  "alerted": {
-    "Buckner-Kasselmann": false,
-    "Clarksville-Kasselmann": false,
-    "Eminence - Kasselmann": false,
-    "Hanover- Kasselmann": false,
-    "LaGrange -Kasselmann": false,
-    "Veterans-Kasselmann": false
-  }
+  "alerted": {}
 }
