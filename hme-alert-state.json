@@ -1,10 +1,7 @@
 {
-  "above_since": {
-    "Buckner-Kasselmann": 1789502598.2974262,
-    "Eminence - Kasselmann": 1789503222.4523659
-  },
+  "above_since": {},
   "alerted": {
-    "Buckner-Kasselmann": true,
+    "Buckner-Kasselmann": false,
     "Veterans-Kasselmann": false
   }
 }
