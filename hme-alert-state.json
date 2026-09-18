@@ -2,5 +2,7 @@
   "above_since": {
     "Veterans-Kasselmann": 1789754615.5619001
   },
-  "alerted": {}
+  "alerted": {
+    "Veterans-Kasselmann": true
+  }
 }
