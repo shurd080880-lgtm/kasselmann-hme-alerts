@@ -50,6 +50,7 @@ const STORES={pendleton:"Pendleton",eminence:"Eminence",lagrange:"LaGrange",hano
 const GROUP_A=["pendleton","eminence","lagrange","hanover"];
 const GROUP_B=["madison","clarksville","buckner","veterans"];
 const V2_MARKER=256;
+const DEVICE_REG_URL="https://script.google.com/a/macros/salibamcd.com/s/AKfycbzHw6HnumJ0lHFq1IGbQMpJZ3YjTWf8WyBQ_mjFlId3dbChY3RLoLqg6vPH2BLz5f4eXw/exec";
 const OLD_TAGS=Object.keys(STORES).map(code=>"hme_store_"+code);
 const DIRECT_HME_TAGS=Object.keys(STORES).map(code=>"hme_target_"+code);
 
@@ -100,18 +101,23 @@ async function saveTags(showMessage=true){
   if(!subscriptionId){if(showMessage)showStatus("Enable Notifications First","Enable notifications, then save your alert locations.","error");return false}
   saving=true;saveButton.disabled=true;saveButton.textContent="Saving…";
   try{
-    const tags={hme_group_a:String(encoded(GROUP_A,hme,labor)),hme_group_b:String(encoded(GROUP_B,hme,labor))};
-    OneSignalInstance.User.addTags(tags);
+    const response=await fetch(DEVICE_REG_URL,{
+      method:"POST",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({subscriptionId,hme,labor})
+    });
+    const result=await response.json();
+    if(!response.ok||!result.ok)throw new Error(result.error||("Registration failed: HTTP "+response.status));
     localStorage.setItem("hme_stores_v2",JSON.stringify(hme)); localStorage.setItem("labor_stores_v2",JSON.stringify(labor));
     localStorage.setItem("hme_stores",JSON.stringify(hme)); localStorage.setItem("labor_alerts_enabled",labor.length?"true":"false"); localStorage.removeItem("hme_store");
-    await new Promise(r=>setTimeout(r,2500));
-    const current=OneSignalInstance.User.getTags ? OneSignalInstance.User.getTags() : {};
-    const ok=String(current.hme_group_a)===tags.hme_group_a&&String(current.hme_group_b)===tags.hme_group_b;
-    saveButton.textContent=ok?"✓ Alert Locations Saved":"Settings Still Syncing";
-    if(showMessage)showStatus(ok?"Alert Locations Saved":"Settings Still Syncing","HME: "+labels(hme)+". Labor: "+labels(labor)+". OneSignal ID: "+(OneSignalInstance.User.onesignalId||"pending")+". Subscription ID: "+subscriptionId+(ok?"":". If these tags do not appear in OneSignal, send this status to support."),ok?"success":"error");
-    return ok;
-  }catch(err){console.error(err);saveButton.textContent="Save Alert Locations for This Device";if(showMessage)showStatus("Unable to Save",err?.message||String(err),"error");return false}
-  finally{saving=false;saveButton.disabled=!ready}
+    saveButton.textContent="✓ Alert Locations Saved";
+    if(showMessage)showStatus("Alert Locations Saved","Server confirmed registration. HME: "+labels(hme)+". Labor: "+labels(labor)+". Subscription ID: "+subscriptionId+".","success");
+    return true;
+  }catch(err){
+    console.error(err);saveButton.textContent="Save Alert Locations for This Device";
+    if(showMessage)showStatus("Unable to Save","Server registration failed. "+(err?.message||String(err)),"error");
+    return false;
+  }finally{saving=false;saveButton.disabled=!ready}
 }
 saveButton.addEventListener("click",()=>saveTags(true));
 
