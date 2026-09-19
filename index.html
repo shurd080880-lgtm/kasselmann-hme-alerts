@@ -101,15 +101,15 @@ async function saveTags(showMessage=true){
   saving=true;saveButton.disabled=true;saveButton.textContent="Saving…";
   try{
     const tags={hme_group_a:String(encoded(GROUP_A,hme,labor)),hme_group_b:String(encoded(GROUP_B,hme,labor))};
-    await OneSignalInstance.User.addTags(tags);
+    OneSignalInstance.User.addTags(tags);
     localStorage.setItem("hme_stores_v2",JSON.stringify(hme)); localStorage.setItem("labor_stores_v2",JSON.stringify(labor));
     localStorage.setItem("hme_stores",JSON.stringify(hme)); localStorage.setItem("labor_alerts_enabled",labor.length?"true":"false"); localStorage.removeItem("hme_store");
     await new Promise(r=>setTimeout(r,2500));
-    const current=OneSignalInstance.User.getTags ? await OneSignalInstance.User.getTags() : {};
+    const current=OneSignalInstance.User.getTags ? OneSignalInstance.User.getTags() : {};
     const ok=String(current.hme_group_a)===tags.hme_group_a&&String(current.hme_group_b)===tags.hme_group_b;
-    saveButton.textContent=ok?"✓ Alert Locations Saved":"✓ Settings Sent";
-    if(showMessage)showStatus(ok?"Alert Locations Saved":"Settings Sent","HME: "+labels(hme)+". Labor: "+labels(labor)+".","success");
-    return true;
+    saveButton.textContent=ok?"✓ Alert Locations Saved":"Settings Still Syncing";
+    if(showMessage)showStatus(ok?"Alert Locations Saved":"Settings Still Syncing","HME: "+labels(hme)+". Labor: "+labels(labor)+". OneSignal ID: "+(OneSignalInstance.User.onesignalId||"pending")+". Subscription ID: "+subscriptionId+(ok?"":". If these tags do not appear in OneSignal, send this status to support."),ok?"success":"error");
+    return ok;
   }catch(err){console.error(err);saveButton.textContent="Save Alert Locations for This Device";if(showMessage)showStatus("Unable to Save",err?.message||String(err),"error");return false}
   finally{saving=false;saveButton.disabled=!ready}
 }
