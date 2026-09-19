@@ -100,7 +100,6 @@ async function saveTags(showMessage=true){
   if(!subscriptionId){if(showMessage)showStatus("Enable Notifications First","Enable notifications, then save your alert locations.","error");return false}
   saving=true;saveButton.disabled=true;saveButton.textContent="Saving…";
   try{
-    await OneSignalInstance.User.removeTags([...OLD_TAGS,...DIRECT_HME_TAGS]); await new Promise(r=>setTimeout(r,500));
     const tags={hme_group_a:String(encoded(GROUP_A,hme,labor)),hme_group_b:String(encoded(GROUP_B,hme,labor))};
     await OneSignalInstance.User.addTags(tags);
     localStorage.setItem("hme_stores_v2",JSON.stringify(hme)); localStorage.setItem("labor_stores_v2",JSON.stringify(labor));
