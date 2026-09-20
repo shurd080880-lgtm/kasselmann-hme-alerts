@@ -1,4 +1,10 @@
 {
-  "above_since": {},
-  "alerted": {}
+  "above_since": {
+    "Eminence - Kasselmann": 1789914376.2475793,
+    "LaGrange -Kasselmann": 1789914376.2475793
+  },
+  "alerted": {
+    "Eminence - Kasselmann": true,
+    "LaGrange -Kasselmann": true
+  }
 }
