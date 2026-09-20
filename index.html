@@ -101,17 +101,20 @@ async function saveTags(showMessage=true){
   if(!subscriptionId){if(showMessage)showStatus("Enable Notifications First","Enable notifications, then save your alert locations.","error");return false}
   saving=true;saveButton.disabled=true;saveButton.textContent="Saving…";
   try{
-    const response=await fetch(DEVICE_REG_URL,{
-      method:"POST",
-      headers:{"Content-Type":"text/plain;charset=utf-8"},
-      body:JSON.stringify({subscriptionId,hme,labor})
-    });
-    const result=await response.json();
-    if(!response.ok||!result.ok)throw new Error(result.error||("Registration failed: HTTP "+response.status));
+    const payload=JSON.stringify({subscriptionId,hme,labor});
+    const form=document.createElement("form");
+    form.method="POST"; form.action=DEVICE_REG_URL; form.target="deviceRegFrame"; form.style.display="none";
+    const input=document.createElement("input");
+    input.type="hidden"; input.name="payload"; input.value=payload;
+    form.appendChild(input); document.body.appendChild(form);
+    let frame=document.getElementById("deviceRegFrame");
+    if(!frame){frame=document.createElement("iframe");frame.id="deviceRegFrame";frame.name="deviceRegFrame";frame.style.display="none";document.body.appendChild(frame)}
+    form.submit(); form.remove();
+    await new Promise(r=>setTimeout(r,2000));
     localStorage.setItem("hme_stores_v2",JSON.stringify(hme)); localStorage.setItem("labor_stores_v2",JSON.stringify(labor));
     localStorage.setItem("hme_stores",JSON.stringify(hme)); localStorage.setItem("labor_alerts_enabled",labor.length?"true":"false"); localStorage.removeItem("hme_store");
-    saveButton.textContent="✓ Alert Locations Saved";
-    if(showMessage)showStatus("Alert Locations Saved","Server confirmed registration. HME: "+labels(hme)+". Labor: "+labels(labor)+". Subscription ID: "+subscriptionId+".","success");
+    saveButton.textContent="✓ Registration Submitted";
+    if(showMessage)showStatus("Registration Submitted","Preferences were sent to the registration server. HME: "+labels(hme)+". Labor: "+labels(labor)+". Subscription ID: "+subscriptionId+".","success");
     return true;
   }catch(err){
     console.error(err);saveButton.textContent="Save Alert Locations for This Device";
