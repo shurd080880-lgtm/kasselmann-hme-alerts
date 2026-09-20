@@ -98,10 +98,12 @@ async function saveTags(showMessage=true){
   const hme=selected(hmeBoxes),labor=selected(laborBoxes);
   if(!hme.length&&!labor.length){if(showMessage)showStatus("Choose at Least One Location","Select at least one HME or Labor location.","error");return false}
   const subscriptionId=await waitForSubscription();
+  const oneSignalId=OneSignalInstance?.User?.onesignalId||null;
   if(!subscriptionId){if(showMessage)showStatus("Enable Notifications First","Enable notifications, then save your alert locations.","error");return false}
+  if(!oneSignalId){if(showMessage)showStatus("OneSignal ID Not Ready","Close and reopen the app, then try saving again.","error");return false}
   saving=true;saveButton.disabled=true;saveButton.textContent="Saving…";
   try{
-    const payload=JSON.stringify({subscriptionId,hme,labor});
+    const payload=JSON.stringify({oneSignalId,subscriptionId,hme,labor});
     const form=document.createElement("form");
     form.method="POST"; form.action=DEVICE_REG_URL; form.target="deviceRegFrame"; form.style.display="none";
     const input=document.createElement("input");
@@ -114,7 +116,7 @@ async function saveTags(showMessage=true){
     localStorage.setItem("hme_stores_v2",JSON.stringify(hme)); localStorage.setItem("labor_stores_v2",JSON.stringify(labor));
     localStorage.setItem("hme_stores",JSON.stringify(hme)); localStorage.setItem("labor_alerts_enabled",labor.length?"true":"false"); localStorage.removeItem("hme_store");
     saveButton.textContent="✓ Registration Submitted";
-    if(showMessage)showStatus("Registration Submitted","Preferences were sent to the registration server. HME: "+labels(hme)+". Labor: "+labels(labor)+". Subscription ID: "+subscriptionId+".","success");
+    if(showMessage)showStatus("Registration Submitted","Preferences were sent to the registration server. HME: "+labels(hme)+". Labor: "+labels(labor)+". OneSignal ID: "+oneSignalId+".","success");
     return true;
   }catch(err){
     console.error(err);saveButton.textContent="Save Alert Locations for This Device";
