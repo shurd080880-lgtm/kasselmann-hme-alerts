@@ -1,12 +1,4 @@
 {
-  "above_since": {
-    "Buckner-Kasselmann": 1790123024.6454592,
-    "Madison- Kasselmann": 1790123024.6454592
-  },
-  "alerted": {
-    "Buckner-Kasselmann": true,
-    "Eminence - Kasselmann": false,
-    "LaGrange -Kasselmann": false,
-    "Madison- Kasselmann": true
-  }
+  "above_since": {},
+  "alerted": {}
 }
