@@ -1,8 +1,9 @@
 {
   "above_since": {
-    "Veterans-Kasselmann": 1790278234.3704586
+    "Hanover- Kasselmann": 1790289784.2152216
   },
   "alerted": {
-    "Veterans-Kasselmann": true
+    "Hanover- Kasselmann": true,
+    "Veterans-Kasselmann": false
   }
 }
