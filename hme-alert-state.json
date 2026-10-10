@@ -1,6 +1,9 @@
 {
-  "above_since": {},
+  "above_since": {
+    "Madison- Kasselmann": 1791674947.2353547
+  },
   "alerted": {
+    "Madison- Kasselmann": true,
     "Pendleton-Kasselmann": false
   }
 }
