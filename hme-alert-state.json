@@ -1,15 +1,4 @@
 {
-  "above_since": {
-    "Eminence - Kasselmann": 1792886491.470138,
-    "LaGrange -Kasselmann": 1792886672.684452,
-    "Veterans-Kasselmann": 1792886491.470138
-  },
-  "alerted": {
-    "Clarksville-Kasselmann": false,
-    "Eminence - Kasselmann": true,
-    "Hanover- Kasselmann": false,
-    "LaGrange -Kasselmann": true,
-    "Madison- Kasselmann": false,
-    "Veterans-Kasselmann": true
-  }
+  "above_since": {},
+  "alerted": {}
 }
