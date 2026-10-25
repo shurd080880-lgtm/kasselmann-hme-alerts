@@ -1,6 +1,9 @@
 {
-  "above_since": {},
+  "above_since": {
+    "Buckner-Kasselmann": 1792967926.1815674
+  },
   "alerted": {
+    "Buckner-Kasselmann": true,
     "Eminence - Kasselmann": false,
     "Hanover- Kasselmann": false
   }
