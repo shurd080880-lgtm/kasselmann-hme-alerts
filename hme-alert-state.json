@@ -1,12 +1,4 @@
 {
-  "above_since": {
-    "Buckner-Kasselmann": 1792967926.1815674,
-    "Clarksville-Kasselmann": 1792975364.0515645
-  },
-  "alerted": {
-    "Buckner-Kasselmann": true,
-    "Clarksville-Kasselmann": true,
-    "Eminence - Kasselmann": false,
-    "Hanover- Kasselmann": false
-  }
+  "above_since": {},
+  "alerted": {}
 }
