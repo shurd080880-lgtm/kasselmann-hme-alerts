@@ -2,5 +2,7 @@
   "above_since": {
     "Buckner-Kasselmann": 1793207002.8168583
   },
-  "alerted": {}
+  "alerted": {
+    "Buckner-Kasselmann": true
+  }
 }
