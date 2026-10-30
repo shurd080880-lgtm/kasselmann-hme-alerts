@@ -2,5 +2,8 @@
   "above_since": {
     "Veterans-Kasselmann": 1793379861.105965
   },
-  "alerted": {}
+  "alerted": {
+    "Clarksville-Kasselmann": false,
+    "Veterans-Kasselmann": true
+  }
 }
