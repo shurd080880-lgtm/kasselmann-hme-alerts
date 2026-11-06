@@ -1,8 +1,7 @@
 {
-  "above_since": {
-    "Eminence - Kasselmann": 1793987350.1135693
-  },
+  "above_since": {},
   "alerted": {
-    "Eminence - Kasselmann": true
+    "Eminence - Kasselmann": false,
+    "Madison- Kasselmann": false
   }
 }
