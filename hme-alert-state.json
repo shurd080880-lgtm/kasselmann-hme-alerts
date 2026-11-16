@@ -1,11 +1,4 @@
 {
-  "above_since": {
-    "Buckner-Kasselmann": 1794780180.3594697,
-    "Veterans-Kasselmann": 1794780180.3594697
-  },
-  "alerted": {
-    "Buckner-Kasselmann": true,
-    "Madison- Kasselmann": false,
-    "Veterans-Kasselmann": true
-  }
+  "above_since": {},
+  "alerted": {}
 }
